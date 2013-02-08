@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"sort"
 	"testing"
 )
 
@@ -85,21 +87,32 @@ var simpleVisitorTestCases = []struct {
 		)`,
 		[]string{"3", "x"},
 	},
+	{`
+		x := 1
+		{
+			x = 2 + 1
+		}`,
+		[]string{"1", "x = 2 + 1"},
+	},
+}
+
+func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", code, parser.DeclarationErrors)
+	if err != nil {
+		t.Fatal("Cannot parse code", err)
+	}
+	return file, fset
 }
 
 func TestSimpleVisitor(t *testing.T) {
 	setT(t)
 	for _, c := range simpleVisitorTestCases {
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, "", `
+		file, _ := parse(`
 		package main
 		func f() {
 	            `+c.body+`
-		}`, parser.DeclarationErrors)
-		//ast.Print(fset, file.Decls[0])
-		if err!=nil {
-			t.Fatal("Can't parser file", err)
-		}
+		}`, t)
 		visitor := VerifyVisitor(c.expected)
 		WalkFile(visitor, file)
 		if len(visitor.rest())!= 0 {
@@ -109,3 +122,66 @@ func TestSimpleVisitor(t *testing.T) {
 	}
 }
 
+type VerifyExitScope struct {
+	v [][]string
+}
+
+func (pv *VerifyExitScope) pop() []string {
+	v := pv.v
+	if len(v)==0 {
+		return nil
+	}
+	last := v[len(v)-1]
+	pv.v = v[:len(v)-1]
+	sort.Strings(last)
+	return last
+}
+
+func scopeNames(scope *ast.Scope) (names []string) {
+	for _, obj := range scope.Objects {
+		names = append(names, obj.Name)
+	}
+	sort.Strings(names)
+	return
+}
+
+func (v *VerifyExitScope) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {
+	return v
+}
+
+func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+	return v
+}
+
+func (v *VerifyExitScope) ExitScope(scope *ast.Scope) ScopeVisitor {
+	expected := v.pop()
+	if fmt.Sprint(expected) != fmt.Sprint(scopeNames(scope)) {
+		t.Error("Expected", expected, "got", scopeNames(scope))
+	}
+	return v
+}
+
+func TestExitScope(t *testing.T) {
+	setT(t)
+	for _, c := range ScopeOrderTestCases {
+		file, _ := parse(c.body, t)
+		expected := &VerifyExitScope{c.scopes}
+		WalkFile(expected, file)
+		if len(expected.v) > 0 {
+			t.Error("Unsatisfied expected scopes", expected)
+		}
+	}
+}
+
+var ScopeOrderTestCases = []struct {
+	body string
+	scopes [][]string
+} {
+	{`
+		package main
+		func f(a int) {
+		}
+	`,
+	[][]string{ {"f"}, {"a"} },
+	},
+}

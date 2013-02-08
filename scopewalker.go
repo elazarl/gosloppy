@@ -19,51 +19,6 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 	}
 	newscope = scope
 	switch stmt := stmt.(type) {
-	case *ast.AssignStmt:
-		if stmt.Tok == token.ASSIGN {
-			newscope = ast.NewScope(scope)
-		}
-		for _, expr := range stmt.Rhs {
-			w = w.VisitExpr(scope, expr)
-		}
-		for _, expr := range stmt.Lhs {
-			w = w.VisitExpr(scope, expr)
-			if stmt.Tok == token.ASSIGN {
-				newscope.Insert(expr.(*ast.Ident).Obj)
-			}
-		}
-	case *ast.DeclStmt:
-		switch decl := stmt.Decl.(type) {
-		case *ast.GenDecl:
-			for _, spec := range decl.Specs {
-				newscope = ast.NewScope(scope)
-				switch spec := spec.(type) {
-				case *ast.TypeSpec:
-					newscope.Insert(spec.Name.Obj)
-					w = w.VisitExpr(scope, spec.Type)
-				case *ast.ValueSpec:
-					for _, name := range spec.Names {
-						newscope.Insert(name.Obj)
-					}
-					for _, value := range spec.Values {
-						w = w.VisitExpr(scope, value)
-					}
-				default:
-					panic("cannot have an import in a statemetn (or so I hope)")
-				}
-				scope = newscope
-			}
-		default:
-			panic("declstmt")
-		}
-	case *ast.IfStmt:
-		ifscope := ast.NewScope(scope)
-		if stmt.Init != nil {
-			ifscope = WalkStmt(w, stmt.Init, ifscope)
-		}
-		WalkExpr(w, stmt.Cond, ifscope)
-		WalkBlock(w, stmt.Body, ifscope)
-		WalkStmt(v, stmt.Else, ifscope)
 	case *ast.RangeStmt:
 		if stmt.Tok == token.ASSIGN {
 			// in assignment statement (eg, a, b := f()), all componente must be *ast.Ident
@@ -150,9 +105,43 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		default:
 			panic("declstmt")
 		}
+		/*
+	case *ast.IfStmt:
+		scope := ast.NewScope(scope)
+		if stmt.Init != nil {
+			scope = WalkStmt(v, stmt.Init, scope)
+		}
+		v = v.VisitExpr(scope, stmt.Cond)
+		bodyscope := ast.NewScope(newscope)
+		WalkStmt(v, stmt.Body, bodyscope)
+		v = v.ExitScope(bodyscope)
+		if stmt.Else != nil {
+			elsescope := ast.NewScope(scope)
+			WalkStmt(v, stmt.Else, elsescope)
+			v = v.ExitScope(elsescope)
+		}
+		*/
+	case *ast.BlockStmt:
+		innerscopes := []*ast.Scope{ast.NewScope(newscope)}
+		appendUniq := func(l []*ast.Scope, elt *ast.Scope) []*ast.Scope {
+			last := l[len(l)-1]
+			if last==elt {
+				return l
+			}
+			return append(l, elt)
+		}
+		for _, s := range stmt.List {
+			innerscopes = appendUniq(innerscopes, WalkStmt(v, s, innerscopes[len(innerscopes)-1]))
+		}
+		for len(innerscopes) > 0 {
+			last := len(innerscopes)-1
+			v.ExitScope(innerscopes[last])
+			innerscopes = innerscopes[:last]
+		}
 	}
 	return
 }
+
 
 func WalkBlock(v ScopeVisitor, block *ast.BlockStmt, scope *ast.Scope) {
 	for _, stmt := range block.List {
@@ -177,6 +166,7 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 				}
 			}
 			WalkBlock(v, d.Body ,scope)
+			v.ExitScope(scope)
 		case *ast.GenDecl:
 		}
 	}
