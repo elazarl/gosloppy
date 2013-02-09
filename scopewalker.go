@@ -12,6 +12,7 @@ type ScopeVisitor interface {
 }
 
 
+// TODO(elazar): scope of func literal
 func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
 	newscope = scope
 	switch stmt := stmt.(type) {
@@ -89,6 +90,12 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		WalkStmt(v, stmt.Body, scope)
 		exitScopes(v, inner, scope)
+	case *ast.SwitchStmt:
+		panic("TODO: not yet implemented")
+	case *ast.TypeSwitchStmt:
+		panic("TODO: not yet implemented")
+	case *ast.SelectStmt:
+		panic("TODO: not yet implemented")
 	case *ast.BlockStmt:
 		inner := ast.NewScope(scope)
 		for _, s := range stmt.List {
