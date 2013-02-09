@@ -3,6 +3,7 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"log"
 )
 
 type ScopeVisitor interface {
@@ -75,9 +76,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 				v = v.VisitExpr(scope, expr)
 			}
 			for _, expr := range stmt.Lhs {
-				if stmt.Tok == token.ASSIGN {
-					newscope.Insert(expr.(*ast.Ident).Obj)
-				}
+				newscope.Insert(expr.(*ast.Ident).Obj)
 			}
 		} else {
 			v.VisitStmt(scope, stmt)
@@ -122,31 +121,19 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		*/
 	case *ast.BlockStmt:
-		innerscopes := []*ast.Scope{ast.NewScope(newscope)}
-		appendUniq := func(l []*ast.Scope, elt *ast.Scope) []*ast.Scope {
-			last := l[len(l)-1]
-			if last==elt {
-				return l
-			}
-			return append(l, elt)
-		}
+		stmtscope := ast.NewScope(scope)
 		for _, s := range stmt.List {
-			innerscopes = appendUniq(innerscopes, WalkStmt(v, s, innerscopes[len(innerscopes)-1]))
+			stmtscope = WalkStmt(v, s, stmtscope)
 		}
-		for len(innerscopes) > 0 {
-			last := len(innerscopes)-1
-			v.ExitScope(innerscopes[last])
-			innerscopes = innerscopes[:last]
+		for stmtscope != scope {
+			if stmtscope == nil {
+				log.Fatal("Oh my")
+			}
+			v.ExitScope(stmtscope)
+			stmtscope = stmtscope.Outer
 		}
 	}
 	return
-}
-
-
-func WalkBlock(v ScopeVisitor, block *ast.BlockStmt, scope *ast.Scope) {
-	for _, stmt := range block.List {
-		scope = WalkStmt(v, stmt, scope)
-	}
 }
 
 func WalkFile(v ScopeVisitor, file *ast.File) {
@@ -165,7 +152,7 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 					scope.Insert(p.Obj)
 				}
 			}
-			WalkBlock(v, d.Body ,scope)
+			WalkStmt(v, d.Body ,scope)
 			v.ExitScope(scope)
 		case *ast.GenDecl:
 		}

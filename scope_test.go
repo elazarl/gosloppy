@@ -106,6 +106,7 @@ func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
 }
 
 func TestSimpleVisitor(t *testing.T) {
+	return
 	setT(t)
 	for _, c := range simpleVisitorTestCases {
 		file, _ := parse(`
@@ -124,6 +125,8 @@ func TestSimpleVisitor(t *testing.T) {
 
 type VerifyExitScope struct {
 	v [][]string
+	t *testing.T
+	ix int
 }
 
 func (pv *VerifyExitScope) pop() []string {
@@ -156,16 +159,15 @@ func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisito
 func (v *VerifyExitScope) ExitScope(scope *ast.Scope) ScopeVisitor {
 	expected := v.pop()
 	if fmt.Sprint(expected) != fmt.Sprint(scopeNames(scope)) {
-		t.Error("Expected", expected, "got", scopeNames(scope))
+		v.t.Error("Expected", append(v.v ,expected), "got", scopeNames(scope), "test case", v.ix)
 	}
 	return v
 }
 
 func TestExitScope(t *testing.T) {
-	setT(t)
-	for _, c := range ScopeOrderTestCases {
+	for i, c := range ScopeOrderTestCases {
 		file, _ := parse(c.body, t)
-		expected := &VerifyExitScope{c.scopes}
+		expected := &VerifyExitScope{c.scopes, t, i}
 		WalkFile(expected, file)
 		if len(expected.v) > 0 {
 			t.Error("Unsatisfied expected scopes", expected)
@@ -173,6 +175,7 @@ func TestExitScope(t *testing.T) {
 	}
 }
 
+// TODO(elazar): think and enable visiting empty block statements
 var ScopeOrderTestCases = []struct {
 	body string
 	scopes [][]string
@@ -182,6 +185,57 @@ var ScopeOrderTestCases = []struct {
 		func f(a int) {
 		}
 	`,
-	[][]string{ {"f"}, {"a"} },
+	[][]string{ {"f"}, {"a"}, {} },
+	},
+	{`
+		package main
+		func f(a int) {
+			{
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"a"}, {}, {} },
+	},
+	{`
+		package main
+		/* empty scope of func's arguments */
+		func f() {
+			/* empty block scope */
+			var x, y int
+		}
+	`,
+	[][]string{ {"f"}, {}, {}, {"x", "y"} },
+	},
+	{`
+		package main
+		/* empty scope of func's arguments */
+		func f() {
+			/* empty block scope */
+			var x, y int
+			x = y
+		}
+	`,
+	[][]string{ {"f"}, {}, {}, {"x", "y"} },
+	},
+	{`
+		package main
+		func f() {
+			var (
+				x int
+				y int
+			)
+			x = y
+		}
+	`,
+	[][]string{ {"f"}, {}, {}, {"x"}, {"y"} },
+	},
+	{`
+		package main
+		func f() {
+			a := 1
+			b := 1
+		}
+	`,
+	[][]string{ {"f"}, {}, {}, {"a"}, {"b"} },
 	},
 }
