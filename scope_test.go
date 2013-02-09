@@ -308,4 +308,52 @@ var ScopeOrderTestCases = []struct {
 	`,
 	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {"nestedifscope"}, {}, {"elsescope"}, {}, {"x"} },
 	},
+	{`
+		package main
+		func f(funscope int) {
+			/* empty stmt block */
+			for 1 == 1 {
+				/* empty stmt block */
+				forscope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {}, {"forscope"} },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			/* empty stmt block */
+			for i := 1; 1 == 1; {
+				/* empty stmt block */
+				forscope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {"i"}, {}, {"forscope"} },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			/* empty stmt block */
+			for k, v := range m {
+				/* empty stmt block */
+				forscope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {"k", "v"}, {}, {"forscope"} },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			/* empty stmt block */
+			for k, v = range m {
+				/* empty stmt block */
+				forscope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {}, {"forscope"} },
+	},
 }

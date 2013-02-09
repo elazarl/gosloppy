@@ -3,7 +3,6 @@ package main
 import (
 	"go/ast"
 	"go/token"
-	"log"
 )
 
 type ScopeVisitor interface {
@@ -12,59 +11,6 @@ type ScopeVisitor interface {
 	ExitScope(scope *ast.Scope) (w ScopeVisitor)
 }
 
-/*
-func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
-	w := v.VisitStmt(scope, stmt)
-	if w==nil {
-		return
-	}
-	newscope = scope
-	switch stmt := stmt.(type) {
-	case *ast.RangeStmt:
-		if stmt.Tok == token.ASSIGN {
-			// in assignment statement (eg, a, b := f()), all componente must be *ast.Ident
-			newscope = ast.NewScope(scope)
-			if stmt.Key!=nil {
-				scope.Insert(stmt.Key.(*ast.Ident).Obj)
-				WalkExpr(w, stmt.Key, scope)
-			}
-			if stmt.Value!=nil {
-				scope.Insert(stmt.Value.(*ast.Ident).Obj)
-				WalkExpr(w, stmt.Value, scope)
-			}
-			WalkBlock(w, stmt.Body, scope)
-		}
-	case *ast.ForStmt:
-		newscope = ast.NewScope(scope)
-		if stmt.Init != nil {
-		}
-		if stmt.Init != nil {
-			WalkStmt(w, stmt.Init, scope)
-		}
-		if stmt.Cond != nil {
-			WalkExpr(w, stmt.Cond, scope)
-		}
-		if stmt.Post != nil {
-			WalkStmt(w, stmt.Post, scope)
-		}
-		WalkBlock(w, stmt.Body, scope)
-	}
-	w.PostVisit(scope, stmt)
-	return
-}
-
-func WalkBlock(v ScopeVisitor, block *ast.BlockStmt, funscope *ast.Scope) {
-	w := v.PreVisit(funscope, block)
-	if w==nil {
-		return
-	}
-	scope := ast.NewScope(funscope)
-	for _, stmt := range block.List {
-		WalkStmt(w, stmt, scope)
-	}
-	w.PostVisit(funscope, block)
-}
-*/
 
 func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
 	newscope = scope
@@ -114,27 +60,53 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		if stmt.Else != nil {
 			WalkStmt(v, stmt.Else, inner)
 		}
-		for inner != scope {
-			if inner == nil {
-				log.Fatal("Oh my")
-			}
-			v.ExitScope(inner)
-			inner = inner.Outer
+		exitScopes(v, inner, scope)
+	case *ast.ForStmt:
+		inner := scope
+		if stmt.Init != nil {
+			inner = WalkStmt(v, stmt.Init, inner)
 		}
+		if stmt.Cond != nil {
+			v = v.VisitExpr(inner, stmt.Cond)
+		}
+		if stmt.Post != nil {
+			WalkStmt(v, stmt.Post, scope)
+		}
+		WalkStmt(v, stmt.Body, scope)
+		exitScopes(v, inner, scope)
+	case *ast.RangeStmt:
+		inner := scope
+		if stmt.Tok == token.ASSIGN {
+			v = v.VisitExpr(inner, stmt.Key)
+			v = v.VisitExpr(inner, stmt.Value)
+		} else if stmt.Tok == token.DEFINE {
+			inner = ast.NewScope(inner)
+			// TODO(elazar): make sure Scope is smart enough not to insert _
+			inner.Insert(stmt.Key.(*ast.Ident).Obj)
+			inner.Insert(stmt.Value.(*ast.Ident).Obj)
+		} else {
+			panic("range statement must have := or = token")
+		}
+		WalkStmt(v, stmt.Body, scope)
+		exitScopes(v, inner, scope)
 	case *ast.BlockStmt:
 		inner := ast.NewScope(scope)
 		for _, s := range stmt.List {
 			inner = WalkStmt(v, s, inner)
 		}
-		for inner != scope {
+		exitScopes(v, inner, scope)
+	}
+	return
+}
+
+func exitScopes(v ScopeVisitor, inner, limit *ast.Scope) {
+		for inner != limit {
 			if inner == nil {
-				log.Fatal("Oh my")
+				panic("exitScopes must be bounded")
 			}
 			v.ExitScope(inner)
 			inner = inner.Outer
 		}
-	}
-	return
 }
 
 func WalkFile(v ScopeVisitor, file *ast.File) {
