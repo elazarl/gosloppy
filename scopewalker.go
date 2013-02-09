@@ -48,7 +48,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 				}
 			}
 		default:
-			panic("declstmt")
+			panic("only GenDecl can appear in statement")
 		}
 	case *ast.IfStmt:
 		inner := scope

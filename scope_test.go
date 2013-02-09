@@ -198,6 +198,14 @@ var ScopeOrderTestCases = []struct {
 	},
 	{`
 		package main
+		func f(funcscope int) {
+			type T int
+		}
+	`,
+	[][]string{ {"f"}, {"funcscope"}, {}, {"T"} },
+	},
+	{`
+		package main
 		/* empty scope of func's arguments */
 		func f() {
 			/* empty block scope */
