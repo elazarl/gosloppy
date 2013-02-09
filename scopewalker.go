@@ -104,33 +104,34 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		default:
 			panic("declstmt")
 		}
-		/*
 	case *ast.IfStmt:
-		scope := ast.NewScope(scope)
+		inner := scope
 		if stmt.Init != nil {
-			scope = WalkStmt(v, stmt.Init, scope)
+			inner = WalkStmt(v, stmt.Init, inner)
 		}
-		v = v.VisitExpr(scope, stmt.Cond)
-		bodyscope := ast.NewScope(newscope)
-		WalkStmt(v, stmt.Body, bodyscope)
-		v = v.ExitScope(bodyscope)
+		v = v.VisitExpr(inner, stmt.Cond)
+		WalkStmt(v, stmt.Body, inner)
 		if stmt.Else != nil {
-			elsescope := ast.NewScope(scope)
-			WalkStmt(v, stmt.Else, elsescope)
-			v = v.ExitScope(elsescope)
+			WalkStmt(v, stmt.Else, inner)
 		}
-		*/
-	case *ast.BlockStmt:
-		stmtscope := ast.NewScope(scope)
-		for _, s := range stmt.List {
-			stmtscope = WalkStmt(v, s, stmtscope)
-		}
-		for stmtscope != scope {
-			if stmtscope == nil {
+		for inner != scope {
+			if inner == nil {
 				log.Fatal("Oh my")
 			}
-			v.ExitScope(stmtscope)
-			stmtscope = stmtscope.Outer
+			v.ExitScope(inner)
+			inner = inner.Outer
+		}
+	case *ast.BlockStmt:
+		inner := ast.NewScope(scope)
+		for _, s := range stmt.List {
+			inner = WalkStmt(v, s, inner)
+		}
+		for inner != scope {
+			if inner == nil {
+				log.Fatal("Oh my")
+			}
+			v.ExitScope(inner)
+			inner = inner.Outer
 		}
 	}
 	return

@@ -232,10 +232,80 @@ var ScopeOrderTestCases = []struct {
 	{`
 		package main
 		func f() {
+			a, b := 1, 2
+		}
+	`,
+	[][]string{ {"f"}, {}, {}, {"a", "b"} },
+	},
+	{`
+		package main
+		func f() {
 			a := 1
 			b := 1
 		}
 	`,
 	[][]string{ {"f"}, {}, {}, {"a"}, {"b"} },
+	},
+	{`
+		package main
+		/* empty func scope */
+		func f() {
+			/* emtpy block */
+			if a == 1 {
+				/* emtpy block */
+			}
+		}
+	`,
+	[][]string{ {"f"}, {}, {}, {} },
+	},
+	{`
+		package main
+		/* empty func scope */
+		func f(funscope int) {
+			/* emtpy block */
+			if a == 1 {
+				/* emtpy block */
+				a := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {}, {"a"} },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			if ifscope := 1; a == 1 {
+				/* emtpy block */
+				x := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"x"} },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			if ifscope := 1; a == 1 {
+				x := 1
+			} else {
+				/* note: extra empty scope for stmtblocck */
+				elsescope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"elsescope"}, {}, {"x"} },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			if ifscope := 1; a == 1 {
+				x := 1
+			} else if nestedifscope := 1; 1 == 1 {
+				/* note: extra empty scope for stmtblocck */
+				elsescope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {"nestedifscope"}, {}, {"elsescope"}, {}, {"x"} },
 	},
 }
