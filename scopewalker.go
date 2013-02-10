@@ -108,7 +108,13 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope)
 	case *ast.TypeSwitchStmt:
-		panic("TODO: not yet implemented")
+		inner := scope
+		if stmt.Init != nil {
+			inner = WalkStmt(v, stmt.Init, inner)
+		}
+		inner = WalkStmt(v, stmt.Assign, inner)
+		WalkStmt(v, stmt.Body, inner)
+		exitScopes(v, inner, scope)
 	case *ast.SelectStmt:
 		panic("TODO: not yet implemented")
 	case *ast.BlockStmt:
