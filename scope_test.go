@@ -398,4 +398,20 @@ var ScopeOrderTestCases = []struct {
 		{/* case string: */},
 		{/* case int */}, {"switchscope"} },
 	},
+	{`
+		package main
+		func f(funscope int) {
+			/* empty stmt block */
+			select {
+			/* empty stmt block */
+			case i := <- ch:
+				/* empty case block */
+				casescope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {/* func block stmt */},
+		{/* select block */},
+		{ "i"/* case block stmt*/ }, {"casescope"} },
+	},
 }

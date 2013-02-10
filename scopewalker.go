@@ -3,6 +3,7 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"log"
 )
 
 type ScopeVisitor interface {
@@ -115,14 +116,22 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		inner = WalkStmt(v, stmt.Assign, inner)
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope)
+	case *ast.CommClause:
+		inner := WalkStmt(v, stmt.Comm, scope)
+		for _, s := range stmt.Body {
+			inner = WalkStmt(v, s, inner)
+		}
+		exitScopes(v, inner, scope)
 	case *ast.SelectStmt:
-		panic("TODO: not yet implemented")
+		WalkStmt(v, stmt.Body, scope)
 	case *ast.BlockStmt:
 		inner := ast.NewScope(scope)
 		for _, s := range stmt.List {
 			inner = WalkStmt(v, s, inner)
 		}
 		exitScopes(v, inner, scope)
+	default:
+		log.Fatalf("Cannot understand %+#v", stmt)
 	}
 	return
 }
