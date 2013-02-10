@@ -90,8 +90,23 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		WalkStmt(v, stmt.Body, scope)
 		exitScopes(v, inner, scope)
+	case *ast.CaseClause:
+		inner := ast.NewScope(scope)
+		for _, expr := range stmt.List {
+			v = v.VisitExpr(scope, expr)
+		}
+		for _, s := range stmt.Body {
+			inner = WalkStmt(v, s, inner)
+		}
+		exitScopes(v, inner, scope)
 	case *ast.SwitchStmt:
-		panic("TODO: not yet implemented")
+		inner := scope
+		if stmt.Init != nil {
+			inner = WalkStmt(v, stmt.Init, inner)
+		}
+		v = v.VisitExpr(inner, stmt.Tag)
+		WalkStmt(v, stmt.Body, inner)
+		exitScopes(v, inner, scope)
 	case *ast.TypeSwitchStmt:
 		panic("TODO: not yet implemented")
 	case *ast.SelectStmt:

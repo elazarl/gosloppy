@@ -364,4 +364,17 @@ var ScopeOrderTestCases = []struct {
 	`,
 	[][]string{ {"f"}, {"funscope"}, {}, {}, {"forscope"} },
 	},
+	{`
+		package main
+		func f(funscope int) {
+			/* empty stmt block */
+			switch a, b := f(); a {
+			case 1:
+				/* empty case block */
+				switchscope := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {}, {"a", "b"}, {}, {}, {"switchscope"} },
+	},
 }
