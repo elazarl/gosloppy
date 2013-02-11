@@ -414,4 +414,14 @@ var ScopeOrderTestCases = []struct {
 		{/* select block */},
 		{ "i"/* case block stmt*/ }, {"casescope"} },
 	},
+	{`
+		package main
+		func f(funscope int) {
+			a = func(funclit int) {
+				infunclit := 1
+			}
+		}
+	`,
+	[][]string{ {"f"}, {"funscope"}, {/* func block stmt */}, {"funclit"}, {/* funclit body*/}, {"infunclit"} },
+	},
 }

@@ -13,21 +13,101 @@ type ScopeVisitor interface {
 }
 
 
+// Note, we're not traversing types, since what interest the users
+// of scope visitor is the actual code, they can get the type from
+// the scope.
+
+func insertFieldsToScope(fields []*ast.Field, scope *ast.Scope) {
+	for _, field := range fields {
+		for _, name := range field.Names {
+			scope.Insert(name.Obj)
+		}
+	}
+}
+
+func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
+	switch expr := expr.(type) {
+	case *ast.Ellipsis:
+		if expr.Elt != nil {
+			WalkExpr(v, expr.Elt, scope)
+		}
+	case *ast.FuncLit:
+		newscope := ast.NewScope(scope)
+		if expr.Type.Params != nil {
+			insertFieldsToScope(expr.Type.Params.List, newscope)
+		}
+		if expr.Type.Results != nil {
+			insertFieldsToScope(expr.Type.Results.List, newscope)
+		}
+		WalkStmt(v, expr.Body, newscope)
+		v.ExitScope(newscope)
+	case *ast.BadExpr:
+		// nothing to do
+	case *ast.ParenExpr:
+		WalkExpr(v, expr.X, scope)
+	case *ast.SelectorExpr:
+		WalkExpr(v, expr.X, scope)
+		WalkExpr(v, expr.Sel, scope)
+	case *ast.IndexExpr:
+		WalkExpr(v, expr.X, scope)
+		WalkExpr(v, expr.Index, scope)
+	case *ast.SliceExpr:
+                WalkExpr(v, expr.X, scope)
+                if expr.Low != nil {
+                        WalkExpr(v, expr.Low, scope)
+                }
+                if expr.High != nil {
+                        WalkExpr(v, expr.High, scope)
+                }
+	case *ast.TypeAssertExpr:
+		WalkExpr(v, expr.X, scope)
+		if expr.Type != nil {
+			WalkExpr(v, expr.Type, scope)
+		}
+	case *ast.CallExpr:
+		WalkExpr(v, expr.Fun, scope)
+		for _, e := range expr.Args {
+			WalkExpr(v, e, scope)
+		}
+	case *ast.StarExpr:
+		WalkExpr(v, expr.X, scope)
+	case *ast.UnaryExpr:
+		WalkExpr(v, expr.X, scope)
+	case *ast.BinaryExpr:
+		WalkExpr(v, expr.X, scope)
+		WalkExpr(v, expr.Y, scope)
+	case *ast.KeyValueExpr:
+		WalkExpr(v, expr.Key, scope)
+		WalkExpr(v, expr.Value, scope)
+	}
+}
+
 // TODO(elazar): scope of func literal
 func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
 	newscope = scope
 	switch stmt := stmt.(type) {
+	case *ast.ExprStmt:
+				println("here")
+		WalkExpr(v, stmt.X, scope)
 	case *ast.AssignStmt:
 		if stmt.Tok == token.DEFINE {
 			newscope = ast.NewScope(scope)
 			for _, expr := range stmt.Rhs {
 				v = v.VisitExpr(scope, expr)
+				WalkExpr(v, expr, scope)
 			}
 			for _, expr := range stmt.Lhs {
 				newscope.Insert(expr.(*ast.Ident).Obj)
 			}
 		} else {
-			v.VisitStmt(scope, stmt)
+			for _, expr := range stmt.Lhs {
+				v = v.VisitExpr(scope, expr)
+				WalkExpr(v, expr, scope)
+			}
+			for _, expr := range stmt.Rhs {
+				v = v.VisitExpr(scope, expr)
+				WalkExpr(v, expr, scope)
+			}
 		}
 	case *ast.DeclStmt:
 		switch decl := stmt.Decl.(type) {
@@ -38,12 +118,14 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 				case *ast.TypeSpec:
 					newscope.Insert(spec.Name.Obj)
 					v = v.VisitExpr(scope, spec.Type)
+					WalkExpr(v, spec.Type, scope)
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
 						newscope.Insert(name.Obj)
 					}
 					for _, value := range spec.Values {
 						v = v.VisitExpr(scope, value)
+						WalkExpr(v, value, scope)
 					}
 				default:
 					panic("cannot have an import in a statement (or so I hope)")
@@ -58,6 +140,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
 		v = v.VisitExpr(inner, stmt.Cond)
+		WalkExpr(v, stmt.Cond, scope)
 		WalkStmt(v, stmt.Body, inner)
 		if stmt.Else != nil {
 			WalkStmt(v, stmt.Else, inner)
@@ -70,6 +153,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		if stmt.Cond != nil {
 			v = v.VisitExpr(inner, stmt.Cond)
+			WalkExpr(v, stmt.Cond, scope)
 		}
 		if stmt.Post != nil {
 			WalkStmt(v, stmt.Post, scope)
@@ -80,7 +164,9 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		inner := scope
 		if stmt.Tok == token.ASSIGN {
 			v = v.VisitExpr(inner, stmt.Key)
+			WalkExpr(v, stmt.Key, scope)
 			v = v.VisitExpr(inner, stmt.Value)
+			WalkExpr(v, stmt.Value, scope)
 		} else if stmt.Tok == token.DEFINE {
 			inner = ast.NewScope(inner)
 			// TODO(elazar): make sure Scope is smart enough not to insert _
@@ -95,6 +181,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		inner := ast.NewScope(scope)
 		for _, expr := range stmt.List {
 			v = v.VisitExpr(scope, expr)
+			WalkExpr(v, expr, scope)
 		}
 		for _, s := range stmt.Body {
 			inner = WalkStmt(v, s, inner)
@@ -106,6 +193,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
 		v = v.VisitExpr(inner, stmt.Tag)
+		WalkExpr(v, stmt.Tag, scope)
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope)
 	case *ast.TypeSwitchStmt:
