@@ -26,6 +26,9 @@ func insertFieldsToScope(fields []*ast.Field, scope *ast.Scope) {
 }
 
 func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
+	if v = v.VisitExpr(scope, expr); v == nil {
+		return
+	}
 	switch expr := expr.(type) {
 	case *ast.Ellipsis:
 		if expr.Elt != nil {
@@ -82,18 +85,18 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 	}
 }
 
-// TODO(elazar): scope of func literal
 func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
 	newscope = scope
+	if v = v.VisitStmt(scope, stmt); v == nil {
+		return
+	}
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-				println("here")
 		WalkExpr(v, stmt.X, scope)
 	case *ast.AssignStmt:
 		if stmt.Tok == token.DEFINE {
 			newscope = ast.NewScope(scope)
 			for _, expr := range stmt.Rhs {
-				v = v.VisitExpr(scope, expr)
 				WalkExpr(v, expr, scope)
 			}
 			for _, expr := range stmt.Lhs {
@@ -101,11 +104,9 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			}
 		} else {
 			for _, expr := range stmt.Lhs {
-				v = v.VisitExpr(scope, expr)
 				WalkExpr(v, expr, scope)
 			}
 			for _, expr := range stmt.Rhs {
-				v = v.VisitExpr(scope, expr)
 				WalkExpr(v, expr, scope)
 			}
 		}
@@ -117,14 +118,12 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
 					newscope.Insert(spec.Name.Obj)
-					v = v.VisitExpr(scope, spec.Type)
 					WalkExpr(v, spec.Type, scope)
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
 						newscope.Insert(name.Obj)
 					}
 					for _, value := range spec.Values {
-						v = v.VisitExpr(scope, value)
 						WalkExpr(v, value, scope)
 					}
 				default:
@@ -139,7 +138,6 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		if stmt.Init != nil {
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
-		v = v.VisitExpr(inner, stmt.Cond)
 		WalkExpr(v, stmt.Cond, scope)
 		WalkStmt(v, stmt.Body, inner)
 		if stmt.Else != nil {
@@ -152,7 +150,6 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
 		if stmt.Cond != nil {
-			v = v.VisitExpr(inner, stmt.Cond)
 			WalkExpr(v, stmt.Cond, scope)
 		}
 		if stmt.Post != nil {
@@ -163,9 +160,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 	case *ast.RangeStmt:
 		inner := scope
 		if stmt.Tok == token.ASSIGN {
-			v = v.VisitExpr(inner, stmt.Key)
 			WalkExpr(v, stmt.Key, scope)
-			v = v.VisitExpr(inner, stmt.Value)
 			WalkExpr(v, stmt.Value, scope)
 		} else if stmt.Tok == token.DEFINE {
 			inner = ast.NewScope(inner)
@@ -180,7 +175,6 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 	case *ast.CaseClause:
 		inner := ast.NewScope(scope)
 		for _, expr := range stmt.List {
-			v = v.VisitExpr(scope, expr)
 			WalkExpr(v, expr, scope)
 		}
 		for _, s := range stmt.Body {
@@ -192,7 +186,6 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		if stmt.Init != nil {
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
-		v = v.VisitExpr(inner, stmt.Tag)
 		WalkExpr(v, stmt.Tag, scope)
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope)
