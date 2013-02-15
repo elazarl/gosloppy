@@ -13,7 +13,7 @@ func TestSimpleUnused(t *testing.T) {
 	for i, c := range UnusedSimple {
 		file, _ := parse(c.body, t)
 		unused := []string{}
-		UnusedInFile(file, func (obj *ast.Object) {
+		UnusedInFile(file, func(obj *ast.Object) {
 			unused = append(unused, obj.Name)
 		})
 		if fmt.Sprint(unused) != fmt.Sprint(c.expUnused) {
@@ -23,9 +23,9 @@ func TestSimpleUnused(t *testing.T) {
 }
 
 var UnusedSimple = []struct {
-	body string
+	body      string
 	expUnused []string
-} {
+}{
 	{
 		`package main
 		func f(a int) {

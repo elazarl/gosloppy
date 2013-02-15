@@ -50,7 +50,7 @@ func main() {
 	fset = fset
 	var a = 1
 	a = a
-	if a==0 {
+	if a == 0 {
 	} else {
 		a = 1
 		a = 11

@@ -46,7 +46,7 @@ func setT(globalT *testing.T) {
 
 func (v VerifyVisitor) verify(n ast.Node) {
 	exp := v.pop()
-	if tostring(n)!=exp {
+	if tostring(n) != exp {
 		t.Error("Expected to visit", exp, "got", tostring(n))
 	}
 }
@@ -65,11 +65,10 @@ func (v VerifyVisitor) ExitScope(scope *ast.Scope) ScopeVisitor {
 	return v
 }
 
-
 var simpleVisitorTestCases = []struct {
-	body string
+	body     string
 	expected []string
-} {
+}{
 	{`
 		a := 1
 		var z, w int = 2
@@ -116,7 +115,7 @@ func TestSimpleVisitor(t *testing.T) {
 		}`, t)
 		visitor := VerifyVisitor(c.expected)
 		WalkFile(visitor, file)
-		if len(visitor.rest())!= 0 {
+		if len(visitor.rest()) != 0 {
 			t.Error("not all expected values consumed", visitor.rest())
 		}
 		//ScopeVisitor(w, file)
@@ -124,14 +123,14 @@ func TestSimpleVisitor(t *testing.T) {
 }
 
 type VerifyExitScope struct {
-	v [][]string
-	t *testing.T
+	v  [][]string
+	t  *testing.T
 	ix int
 }
 
 func (pv *VerifyExitScope) pop() []string {
 	v := pv.v
-	if len(v)==0 {
+	if len(v) == 0 {
 		return nil
 	}
 	last := v[len(v)-1]
@@ -159,7 +158,7 @@ func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisito
 func (v *VerifyExitScope) ExitScope(scope *ast.Scope) ScopeVisitor {
 	expected := v.pop()
 	if fmt.Sprint(expected) != fmt.Sprint(scopeNames(scope)) {
-		v.t.Error("Expected", append(v.v ,expected), "got", scopeNames(scope), "test case", v.ix)
+		v.t.Error("Expected", append(v.v, expected), "got", scopeNames(scope), "test case", v.ix)
 	}
 	return v
 }
@@ -177,15 +176,15 @@ func TestExitScope(t *testing.T) {
 
 // TODO(elazar): think and enable visiting empty block statements
 var ScopeOrderTestCases = []struct {
-	body string
+	body   string
 	scopes [][]string
-} {
+}{
 	{`
 		package main
 		func f(a int) {
 		}
 	`,
-	[][]string{ {"f"}, {"a"}, {} },
+		[][]string{{"f"}, {"a"}, {}},
 	},
 	{`
 		package main
@@ -194,7 +193,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"a"}, {}, {} },
+		[][]string{{"f"}, {"a"}, {}, {}},
 	},
 	{`
 		package main
@@ -202,7 +201,7 @@ var ScopeOrderTestCases = []struct {
 			type T int
 		}
 	`,
-	[][]string{ {"f"}, {"funcscope"}, {}, {"T"} },
+		[][]string{{"f"}, {"funcscope"}, {}, {"T"}},
 	},
 	{`
 		package main
@@ -212,7 +211,7 @@ var ScopeOrderTestCases = []struct {
 			var x, y int
 		}
 	`,
-	[][]string{ {"f"}, {}, {}, {"x", "y"} },
+		[][]string{{"f"}, {}, {}, {"x", "y"}},
 	},
 	{`
 		package main
@@ -223,7 +222,7 @@ var ScopeOrderTestCases = []struct {
 			x = y
 		}
 	`,
-	[][]string{ {"f"}, {}, {}, {"x", "y"} },
+		[][]string{{"f"}, {}, {}, {"x", "y"}},
 	},
 	{`
 		package main
@@ -235,7 +234,7 @@ var ScopeOrderTestCases = []struct {
 			x = y
 		}
 	`,
-	[][]string{ {"f"}, {}, {}, {"x"}, {"y"} },
+		[][]string{{"f"}, {}, {}, {"x"}, {"y"}},
 	},
 	{`
 		package main
@@ -243,7 +242,7 @@ var ScopeOrderTestCases = []struct {
 			a, b := 1, 2
 		}
 	`,
-	[][]string{ {"f"}, {}, {}, {"a", "b"} },
+		[][]string{{"f"}, {}, {}, {"a", "b"}},
 	},
 	{`
 		package main
@@ -252,7 +251,7 @@ var ScopeOrderTestCases = []struct {
 			b := 1
 		}
 	`,
-	[][]string{ {"f"}, {}, {}, {"a"}, {"b"} },
+		[][]string{{"f"}, {}, {}, {"a"}, {"b"}},
 	},
 	{`
 		package main
@@ -264,7 +263,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {}, {}, {} },
+		[][]string{{"f"}, {}, {}, {}},
 	},
 	{`
 		package main
@@ -277,7 +276,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {}, {"a"} },
+		[][]string{{"f"}, {"funscope"}, {}, {}, {"a"}},
 	},
 	{`
 		package main
@@ -288,7 +287,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"x"} },
+		[][]string{{"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"x"}},
 	},
 	{`
 		package main
@@ -301,7 +300,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"elsescope"}, {}, {"x"} },
+		[][]string{{"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"elsescope"}, {}, {"x"}},
 	},
 	{`
 		package main
@@ -314,7 +313,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {"ifscope"}, {"nestedifscope"}, {}, {"elsescope"}, {}, {"x"} },
+		[][]string{{"f"}, {"funscope"}, {}, {"ifscope"}, {"nestedifscope"}, {}, {"elsescope"}, {}, {"x"}},
 	},
 	{`
 		package main
@@ -326,7 +325,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {}, {"forscope"} },
+		[][]string{{"f"}, {"funscope"}, {}, {}, {"forscope"}},
 	},
 	{`
 		package main
@@ -338,7 +337,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {"i"}, {}, {"forscope"} },
+		[][]string{{"f"}, {"funscope"}, {}, {"i"}, {}, {"forscope"}},
 	},
 	{`
 		package main
@@ -350,7 +349,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {"k", "v"}, {}, {"forscope"} },
+		[][]string{{"f"}, {"funscope"}, {}, {"k", "v"}, {}, {"forscope"}},
 	},
 	{`
 		package main
@@ -362,7 +361,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {}, {"forscope"} },
+		[][]string{{"f"}, {"funscope"}, {}, {}, {"forscope"}},
 	},
 	{`
 		package main
@@ -376,7 +375,7 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {}, {"a", "b"}, {}, {}, {"switchscope"} },
+		[][]string{{"f"}, {"funscope"}, {}, {"a", "b"}, {}, {}, {"switchscope"}},
 	},
 	{`
 		package main
@@ -393,10 +392,10 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {/* func block */},
-		{"a", "b"}, {"a"}, {/* switch */},
-		{/* case string: */},
-		{/* case int */}, {"switchscope"} },
+		[][]string{{"f"}, {"funscope"}, { /* func block */},
+			{"a", "b"}, {"a"}, { /* switch */},
+			{ /* case string: */},
+			{ /* case int */}, {"switchscope"}},
 	},
 	{`
 		package main
@@ -410,9 +409,9 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {/* func block stmt */},
-		{/* select block */},
-		{ "i"/* case block stmt*/ }, {"casescope"} },
+		[][]string{{"f"}, {"funscope"}, { /* func block stmt */},
+			{ /* select block */},
+			{"i" /* case block stmt*/}, {"casescope"}},
 	},
 	{`
 		package main
@@ -422,6 +421,6 @@ var ScopeOrderTestCases = []struct {
 			}
 		}
 	`,
-	[][]string{ {"f"}, {"funscope"}, {/* func block stmt */}, {"funclit"}, {/* funclit body*/}, {"infunclit"} },
+		[][]string{{"f"}, {"funscope"}, { /* func block stmt */}, {"funclit"}, { /* funclit body*/}, {"infunclit"}},
 	},
 }

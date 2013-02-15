@@ -12,7 +12,6 @@ type ScopeVisitor interface {
 	ExitScope(scope *ast.Scope) (w ScopeVisitor)
 }
 
-
 // Note, we're not traversing types, since what interest the users
 // of scope visitor is the actual code, they can get the type from
 // the scope.
@@ -55,13 +54,13 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 		WalkExpr(v, expr.X, scope)
 		WalkExpr(v, expr.Index, scope)
 	case *ast.SliceExpr:
-                WalkExpr(v, expr.X, scope)
-                if expr.Low != nil {
-                        WalkExpr(v, expr.Low, scope)
-                }
-                if expr.High != nil {
-                        WalkExpr(v, expr.High, scope)
-                }
+		WalkExpr(v, expr.X, scope)
+		if expr.Low != nil {
+			WalkExpr(v, expr.Low, scope)
+		}
+		if expr.High != nil {
+			WalkExpr(v, expr.High, scope)
+		}
 	case *ast.TypeAssertExpr:
 		WalkExpr(v, expr.X, scope)
 		if expr.Type != nil {
@@ -218,24 +217,24 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 }
 
 func exitScopes(v ScopeVisitor, inner, limit *ast.Scope) {
-		for inner != limit {
-			if inner == nil {
-				panic("exitScopes must be bounded")
-			}
-			v.ExitScope(inner)
-			inner = inner.Outer
+	for inner != limit {
+		if inner == nil {
+			panic("exitScopes must be bounded")
 		}
+		v.ExitScope(inner)
+		inner = inner.Outer
+	}
 }
 
 func WalkFile(v ScopeVisitor, file *ast.File) {
-	if v==nil {
+	if v == nil {
 		return
 	}
 	for _, d := range file.Decls {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
 			scope := ast.NewScope(file.Scope)
-			if d.Recv!=nil {
+			if d.Recv != nil {
 				scope.Insert(d.Recv.List[0].Names[0].Obj)
 			}
 			for _, fields := range d.Type.Params.List {
@@ -243,10 +242,13 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 					scope.Insert(p.Obj)
 				}
 			}
-			WalkStmt(v, d.Body ,scope)
+			WalkStmt(v, d.Body, scope)
 			v.ExitScope(scope)
 		case *ast.GenDecl:
 		}
 	}
 	v.ExitScope(file.Scope)
+}
+
+func insertToScope(scope *ast.Scope, obj *ast.Object) {
 }
