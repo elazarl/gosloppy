@@ -19,7 +19,7 @@ type ScopeVisitor interface {
 func insertFieldsToScope(fields []*ast.Field, scope *ast.Scope) {
 	for _, field := range fields {
 		for _, name := range field.Names {
-			scope.Insert(name.Obj)
+			insertToScope(scope, name.Obj)
 		}
 	}
 }
@@ -99,7 +99,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 				WalkExpr(v, expr, scope)
 			}
 			for _, expr := range stmt.Lhs {
-				newscope.Insert(expr.(*ast.Ident).Obj)
+				insertToScope(newscope, expr.(*ast.Ident).Obj)
 			}
 		} else {
 			for _, expr := range stmt.Lhs {
@@ -116,11 +116,11 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 				newscope = ast.NewScope(newscope)
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
-					newscope.Insert(spec.Name.Obj)
+					insertToScope(newscope, spec.Name.Obj)
 					WalkExpr(v, spec.Type, scope)
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						newscope.Insert(name.Obj)
+						insertToScope(newscope, name.Obj)
 					}
 					for _, value := range spec.Values {
 						WalkExpr(v, value, scope)
@@ -163,9 +163,8 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			WalkExpr(v, stmt.Value, scope)
 		} else if stmt.Tok == token.DEFINE {
 			inner = ast.NewScope(inner)
-			// TODO(elazar): make sure Scope is smart enough not to insert _
-			inner.Insert(stmt.Key.(*ast.Ident).Obj)
-			inner.Insert(stmt.Value.(*ast.Ident).Obj)
+			insertToScope(inner, stmt.Key.(*ast.Ident).Obj)
+			insertToScope(inner, stmt.Value.(*ast.Ident).Obj)
 		} else {
 			panic("range statement must have := or = token")
 		}
@@ -235,11 +234,11 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 		case *ast.FuncDecl:
 			scope := ast.NewScope(file.Scope)
 			if d.Recv != nil {
-				scope.Insert(d.Recv.List[0].Names[0].Obj)
+				insertToScope(scope, d.Recv.List[0].Names[0].Obj)
 			}
 			for _, fields := range d.Type.Params.List {
 				for _, p := range fields.Names {
-					scope.Insert(p.Obj)
+					insertToScope(scope, p.Obj)
 				}
 			}
 			WalkStmt(v, d.Body, scope)
@@ -251,4 +250,11 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 }
 
 func insertToScope(scope *ast.Scope, obj *ast.Object) {
+	if obj.Name == "_" {
+		return
+	}
+	if obj.Kind == ast.Fun && obj.Name == "init" {
+		return
+	}
+	scope.Insert(obj)
 }

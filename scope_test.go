@@ -423,4 +423,20 @@ var ScopeOrderTestCases = []struct {
 	`,
 		[][]string{{"f"}, {"funscope"}, { /* func block stmt */}, {"funclit"}, { /* funclit body*/}, {"infunclit"}},
 	},
+	{`
+		package main
+		func init() {
+			var _ = 1
+		}
+	`,
+		[][]string{ {}, },
+	},
+	{`
+		package main
+		func f(funscope int) {
+			init := func(funclitscope int) {}
+		}
+	`,
+		[][]string{{"f"}, {"funscope"}, {}, {"init"}, {"funclitscope"}, {/* funclit stmt block */}},
+	},
 }
