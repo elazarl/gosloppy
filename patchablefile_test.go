@@ -7,14 +7,13 @@ import (
 )
 
 func TestPatchableFileNoPatches(t *testing.T) {
-	var body =
-`package main
+	var body = `package main
 func
 
 f   ( ) {
         }`
 	buf := new(bytes.Buffer)
-	file, fset := parse(body , t)
+	file, fset := parse(body, t)
 	patchable := &PatchableFile{"", file, fset, body}
 	patchable.Fprint(buf, file)
 	if buf.String() != body {
@@ -23,7 +22,7 @@ f   ( ) {
 	buf.Reset()
 	patchable.Fprint(buf, file.Decls[0])
 	exp :=
-`func
+		`func
 
 f   ( ) {
         }`
@@ -33,18 +32,17 @@ f   ( ) {
 }
 
 func TestPatchableFileSimple(t *testing.T) {
-	var body =
-`package main
+	var body = `package main
 func
 
 f   ( ) {
         }`
 	buf := new(bytes.Buffer)
-	file, fset := parse(body , t)
+	file, fset := parse(body, t)
 	patchable := &PatchableFile{"", file, fset, body}
 	patchable.FprintPatched(buf, file, Patches{&Patch{file.Decls[0].Pos(), "/* before */"}})
 	exp :=
-`package main
+		`package main
 /* before */func
 
 f   ( ) {
@@ -56,7 +54,7 @@ f   ( ) {
 	patchable.FprintPatched(buf, file, Patches{&Patch{file.Decls[0].Pos(), "/* before */"}, &Patch{file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"},
 		&Patch{file.Package, "/* package */"}})
 	exp =
-`/* package */package main
+		`/* package */package main
 /* before */func
 
 /* f */f   ( ) {
@@ -67,7 +65,7 @@ f   ( ) {
 	buf.Reset()
 	patchable.FprintPatched(buf, file.Decls[0], Patches{&Patch{file.Decls[0].Pos(), "/* before */"}})
 	exp =
-`/* before */func
+		`/* before */func
 
 f   ( ) {
         }`
@@ -80,7 +78,7 @@ f   ( ) {
 		&Patch{file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"},
 		&Patch{file.Package, "/* import */"}})
 	exp =
-`/* before */func
+		`/* before */func
 
 /* f */f   ( ) {
         }`

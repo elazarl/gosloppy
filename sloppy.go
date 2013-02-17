@@ -5,8 +5,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 )
@@ -44,6 +46,68 @@ func prtype(obj interface{}) {
 
 type SV bool
 
+func parseDir(path string, mode parser.Mode) (map[string]*PatchableFile, error) {
+	m := make(map[string]*PatchableFile)
+	lst, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	fset := token.NewFileSet()
+	for _, info := range lst {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
+			buf, err := ioutil.ReadFile(filepath.Join(path, info.Name()))
+			if err != nil {
+				return nil, err
+			}
+			file, err := parser.ParseFile(fset, info.Name(), buf, mode)
+			if err != nil {
+				return nil, err
+			}
+			m[info.Name()] = &PatchableFile{info.Name(), file, fset, string(buf)}
+		}
+	}
+	return m, nil
+}
+
+func buildSloppy(path string) error {
+	//files, err := parseDir(path, parser.ParseComments)
+	lst, err := ioutil.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	outdir := filepath.Join(path, "gosloppy")
+	if err := os.MkdirAll(outdir, 0766); err != nil {
+		return err
+	}
+	// defer os.RemoveAll(filepath.Join(path, "gosloppy"))
+	for _, info := range lst {
+		name := info.Name()
+		if strings.HasSuffix(name, ".go") {
+			patchable, err := ParsePatchable(filepath.Join(path, name))
+			if err != nil {
+				return err
+			}
+			patches := Patches{}
+			UnusedInFile(patchable.File, func(obj *ast.Object) {
+				if obj.Kind == ast.Fun {
+					return
+				}
+				patches = append(patches, &Patch{obj.Decl.(ast.Node).End(), ";var _ = " + obj.Name})
+			})
+			fmt.Println("Creating", filepath.Join(outdir, name))
+			file, err := os.Create(filepath.Join(outdir, name))
+			if err != nil {
+				return err
+			}
+			patchable.FprintPatched(file, patchable.File, patches)
+			if err := file.Close(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func main() {
 	fmt.Println("main")
 	fset := token.NewFileSet()
@@ -55,14 +119,8 @@ func main() {
 		a = 1
 		a = 11
 	}
-	pkgs, err := parser.ParseDir(fset, os.Args[1], isgofile, parser.DeclarationErrors)
-	fatalOnErr(err)
-	for _, p := range pkgs {
-		for fname, tree := range p.Files {
-			fmt.Println("file", fname)
-			var _ = tree
-			//WalkFile(SV(true), tree)
-		}
+	if err := buildSloppy(os.Args[1]); err != nil {
+		log.Fatal(err)
 	}
 	/*for k, p := range pkgs {
 		fmt.Println("In", k)

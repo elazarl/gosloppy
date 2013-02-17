@@ -17,7 +17,7 @@ type PatchableFile struct {
 }
 
 type Patch struct {
-	Pos token.Pos
+	Pos    token.Pos
 	Insert string
 }
 
@@ -41,8 +41,8 @@ func (p *PatchableFile) Fprint(w io.Writer, nd ast.Node) (int, error) {
 
 type Patches []*Patch
 
-func (p Patches) Len() int { return len(p) }
-func (p Patches) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p Patches) Len() int           { return len(p) }
+func (p Patches) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p Patches) Less(i, j int) bool { return p[i].Pos < p[j].Pos }
 
 func sorted(patches []*Patch) Patches {
@@ -83,4 +83,3 @@ func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []*Patch
 	}
 	return
 }
-

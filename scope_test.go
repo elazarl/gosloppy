@@ -429,7 +429,7 @@ var ScopeOrderTestCases = []struct {
 			var _ = 1
 		}
 	`,
-		[][]string{ {}, },
+		[][]string{{}},
 	},
 	{`
 		package main
@@ -437,6 +437,6 @@ var ScopeOrderTestCases = []struct {
 			init := func(funclitscope int) {}
 		}
 	`,
-		[][]string{{"f"}, {"funscope"}, {}, {"init"}, {"funclitscope"}, {/* funclit stmt block */}},
+		[][]string{{"f"}, {"funscope"}, {}, {"init"}, {"funclitscope"}, { /* funclit stmt block */}},
 	},
 }
