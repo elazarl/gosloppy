@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -34,7 +34,6 @@ func (v VerifyVisitor) pop() string {
 
 func tostring(n ast.Node) string {
 	buf := new(bytes.Buffer)
-	printer.Fprint(buf, token.NewFileSet(), n)
 	return buf.String()
 }
 
@@ -104,6 +103,49 @@ func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
 	return file, fset
 }
 
+type BrothersTest testing.T
+
+func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+	prefix := "inscope_"
+	if ident, ok := expr.(*ast.Ident); ok && strings.HasPrefix(ident.Name, prefix) {
+		brothers := strings.Split(ident.Name[len(prefix):], "_")
+		sort.Strings(brothers)
+		if fmt.Sprint(brothers) != fmt.Sprint(scopeNames(scope)) {
+			(*testing.T)(t).Errorf("Expected %v, got %v in scope", brothers, scopeNames(scope))
+		}
+	}
+	return t
+}
+
+func (t *BrothersTest) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+	return t
+}
+
+func (t *BrothersTest) ExitScope(scope *ast.Scope) ScopeVisitor {
+	return t
+}
+
+var VisitorScopeTestCases = []string{
+	`package main
+func f() {
+	inscope_ = 1
+}
+`,
+	`package main
+func f() {
+	a := 1
+	inscope_a = 1
+}
+`,
+}
+
+func TestVisitorScope(t *testing.T) {
+	for _, c := range VisitorScopeTestCases {
+		file, _ := parse(c, t)
+		WalkFile((*BrothersTest)(t), file)
+	}
+}
+
 func TestSimpleVisitor(t *testing.T) {
 	return
 	setT(t)
@@ -118,7 +160,6 @@ func TestSimpleVisitor(t *testing.T) {
 		if len(visitor.rest()) != 0 {
 			t.Error("not all expected values consumed", visitor.rest())
 		}
-		//ScopeVisitor(w, file)
 	}
 }
 

@@ -23,28 +23,10 @@ func isgofile(info os.FileInfo) bool {
 	return strings.HasSuffix(info.Name(), ".go")
 }
 
-var i = 100
-
-type VarSet map[ast.Decl]bool
-
-func (vs VarSet) Contains(decl ast.Decl) bool {
-	_, ok := vs[decl]
-	return ok
-}
-func (vs VarSet) Add(decl ast.Decl) bool {
-	_, ok := vs[decl]
-	vs[decl] = true
-	return ok
-}
-
-var _ = reflect.Array
-
 func prtype(obj interface{}) {
 	fmt.Println(reflect.TypeOf(obj))
 	fmt.Printf("%+#v\n", obj)
 }
-
-type SV bool
 
 func parseDir(path string, mode parser.Mode) (map[string]*PatchableFile, error) {
 	m := make(map[string]*PatchableFile)
@@ -69,6 +51,21 @@ func parseDir(path string, mode parser.Mode) (map[string]*PatchableFile, error) 
 	return m, nil
 }
 
+type patchUnused struct {
+	patches Patches
+}
+
+func (p *patchUnused) UnusedObj(obj *ast.Object) {
+	if obj.Kind == ast.Fun {
+		return
+	}
+	p.patches = append(p.patches, &Patch{obj.Decl.(ast.Node).End(), ";var _ = " + obj.Name})
+}
+
+func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
+	p.patches = append(p.patches, &Patch{imp.Pos(), "_ "})
+}
+
 func buildSloppy(path string) error {
 	//files, err := parseDir(path, parser.ParseComments)
 	lst, err := ioutil.ReadDir(path)
@@ -88,13 +85,7 @@ func buildSloppy(path string) error {
 				return err
 			}
 			patches := Patches{}
-			UnusedInFile(patchable.File, func(obj *ast.Object) {
-				if obj.Kind == ast.Fun {
-					return
-				}
-				patches = append(patches, &Patch{obj.Decl.(ast.Node).End(), ";var _ = " + obj.Name})
-			})
-			fmt.Println("Creating", filepath.Join(outdir, name))
+			UnusedInFile(patchable.File, &patchUnused{patches})
 			file, err := os.Create(filepath.Join(outdir, name))
 			if err != nil {
 				return err

@@ -244,6 +244,15 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 			WalkStmt(v, d.Body, scope)
 			v.ExitScope(scope)
 		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch spec := spec.(type) {
+				case *ast.ValueSpec:
+					// already in scope insertToScope(file.Scope, spec.Names)
+					for _, value := range spec.Values {
+						WalkExpr(v, value, file.Scope)
+					}
+				}
+			}
 		}
 	}
 	v.ExitScope(file.Scope)

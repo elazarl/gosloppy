@@ -9,13 +9,23 @@ import (
 func equal(a, b []string) {
 }
 
+type unusedNames func(string)
+
+func (f unusedNames) UnusedObj(obj *ast.Object) {
+	f(obj.Name)
+}
+
+func (f unusedNames) UnusedImport(imp *ast.ImportSpec) {
+	f(imp.Path.Value)
+}
+
 func TestSimpleUnused(t *testing.T) {
 	for i, c := range UnusedSimple {
 		file, _ := parse(c.body, t)
 		unused := []string{}
-		UnusedInFile(file, func(obj *ast.Object) {
-			unused = append(unused, obj.Name)
-		})
+		UnusedInFile(file, unusedNames(func(name string) {
+			unused = append(unused, name)
+		}))
 		if fmt.Sprint(unused) != fmt.Sprint(c.expUnused) {
 			t.Errorf("Case #%d:\n%s\n Expected unused %v got %v", i, c.body, c.expUnused, unused)
 		}
@@ -71,5 +81,18 @@ var UnusedSimple = []struct {
 		}
 		`,
 		[]string{"f"},
+	},
+	{
+		`package main
+		import "fmt"
+		`,
+		[]string{`"fmt"`},
+	},
+	{
+		`package main
+		import "fmt"
+		var i = fmt.Println
+		`,
+		[]string{"i"},
 	},
 }
