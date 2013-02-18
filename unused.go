@@ -1,13 +1,9 @@
 package main
 
 import (
+	"github.com/elazarl/gosloppy/imports"
 	"go/ast"
 )
-
-// Walks through all unused objects in package
-func UnusedInPackage(pkg *ast.Package, f func(obj *ast.Object) bool) {
-	panic("Not implemented")
-}
 
 type Visitor interface {
 	UnusedObj(obj *ast.Object)
@@ -22,7 +18,8 @@ func UnusedInFile(file *ast.File, v Visitor) {
 	uv := newUnusedVisitor(v)
 	WalkFile(uv, file)
 	for _, imp := range file.Imports {
-		if !uv.usedImports[imp.Path.Value] && !anonymousImport(imp.Name) {
+		name := imports.GetNameOrGuess(imp)
+		if !uv.usedImports[name] && !anonymousImport(imp.Name) {
 			v.UnusedImport(imp)
 		}
 	}
