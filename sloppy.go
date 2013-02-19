@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -66,21 +67,20 @@ func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
 	p.patches = append(p.patches, &Patch{imp.Pos(), "_ "})
 }
 
-func buildSloppy(path string) error {
-	//files, err := parseDir(path, parser.ParseComments)
-	lst, err := ioutil.ReadDir(path)
+func buildSloppy(srcdir, outdir string) error {
+	//files, err := parseDir(srcDir, parser.ParseComments)
+	lst, err := ioutil.ReadDir(srcdir)
 	if err != nil {
 		return err
 	}
-	outdir := filepath.Join(path, "gosloppy")
 	if err := os.MkdirAll(outdir, 0766); err != nil {
 		return err
 	}
-	// defer os.RemoveAll(filepath.Join(path, "gosloppy"))
+	// defer os.RemoveAll(filepath.Join(srcDir, "gosloppy"))
 	for _, info := range lst {
 		name := info.Name()
 		if strings.HasSuffix(name, ".go") {
-			patchable, err := ParsePatchable(filepath.Join(path, name))
+			patchable, err := ParsePatchable(filepath.Join(srcdir, name))
 			if err != nil {
 				return err
 			}
@@ -99,28 +99,27 @@ func buildSloppy(path string) error {
 	return nil
 }
 
-func main() {
-	fmt.Println("main")
-	fset := token.NewFileSet()
-	fset = fset
-	var a = 1
-	a = a
-	if a == 0 {
-	} else {
-		a = 1
-		a = 11
+func getPackageName() (pkgname string) {
+	for _, arg := range os.Args {
+		if !strings.HasPrefix(arg, "-") {
+			pkgname = arg
+		}
 	}
-	if err := buildSloppy(os.Args[1]); err != nil {
+	return
+}
+
+func main() {
+	pkgname := getPackageName()
+	pkgdir := "."
+	outdir := "__gosloppy"
+	if pkgname != "" {
+		p, err := build.Import(pkgname, "", build.FindOnly)
+		if err != nil {
+			log.Fatal("Can't find package", pkgname, err)
+		}
+		pkgdir = p.Dir
+	}
+	if err := buildSloppy(pkgdir, outdir); err != nil {
 		log.Fatal(err)
 	}
-	/*for k, p := range pkgs {
-		fmt.Println("In", k)
-		for fname, tree := range p.Files {
-			fmt.Println("File", fname)
-			fmt.Println(tree.Scope)
-			fmt.Printf("%+#v\n", ast.ExprStmt{&ast.CallExpr{}})
-			prtype(&ast.CallExpr{Fun: &ast.SelectorExpr{X: &ast.Ident{Name: "fmt"}, Sel: &ast.Ident{Name: "Println"}}, Args:[]ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: `"main"`}}})
-			prtype(tree.Scope.Lookup("main").Decl.(*ast.FuncDecl).Body.List[0].(*ast.ExprStmt).X.(*ast.CallExpr).Fun.(*ast.SelectorExpr).Sel)
-		}
-	}*/
 }
