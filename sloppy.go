@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -9,20 +10,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 )
-
-func fatalOnErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func isgofile(info os.FileInfo) bool {
-	return strings.HasSuffix(info.Name(), ".go")
-}
 
 func prtype(obj interface{}) {
 	fmt.Println(reflect.TypeOf(obj))
@@ -84,13 +76,13 @@ func buildSloppy(srcdir, outdir string) error {
 			if err != nil {
 				return err
 			}
-			patches := Patches{}
-			UnusedInFile(patchable.File, &patchUnused{patches})
+			patches := &patchUnused{Patches{}}
+			UnusedInFile(patchable.File, patches)
 			file, err := os.Create(filepath.Join(outdir, name))
 			if err != nil {
 				return err
 			}
-			patchable.FprintPatched(file, patchable.File, patches)
+			patchable.FprintPatched(file, patchable.File, patches.patches)
 			if err := file.Close(); err != nil {
 				return err
 			}
@@ -99,27 +91,88 @@ func buildSloppy(srcdir, outdir string) error {
 	return nil
 }
 
-func getPackageName() (pkgname string) {
-	for _, arg := range os.Args {
+func args() (args []string) {
+	for _, arg := range os.Args[1:] {
 		if !strings.HasPrefix(arg, "-") {
-			pkgname = arg
+			args = append(args, arg)
 		}
 	}
 	return
 }
 
-func main() {
-	pkgname := getPackageName()
+func sloppify(pkgname string) (sloppified string) {
 	pkgdir := "."
 	outdir := "__gosloppy"
 	if pkgname != "" {
 		p, err := build.Import(pkgname, "", build.FindOnly)
 		if err != nil {
-			log.Fatal("Can't find package", pkgname, err)
+			log.Fatal("Can't find package '", pkgname, "': ", err)
 		}
 		pkgdir = p.Dir
 	}
 	if err := buildSloppy(pkgdir, outdir); err != nil {
 		log.Fatal(err)
+	}
+	return filepath.Join(pkgdir, outdir)
+}
+
+func sloppifyHelper(args []string) (outdir string) {
+	pkgname := ""
+	if len(args) > 0 {
+		pkgname = args[0]
+	}
+	return sloppify(pkgname)
+}
+
+func gocmd(dir string, args ...string) error {
+	cmd := exec.Command("go", args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		log.Fatal("Cannot execute go tool", err)
+	}
+	return cmd.Wait()
+}
+
+func gotest(args []string) error {
+	return gocmd(sloppifyHelper(args), os.Args[1:]...)
+}
+
+func gobuild(args []string) error {
+	output := flag.String("o", "", "output directory")
+	flag.Parse()
+	goargs := os.Args[1:]
+	if *output != "" {
+		goargs = append(flag.Args(), "-o", filepath.Join("..", *output))
+	}
+	return gocmd(sloppifyHelper(args), goargs...)
+}
+
+func usage() {
+	fmt.Println(`Usage:
+run tests:
+gosloppy test <go test switches>
+build a binary:
+gosloppy build <go build switches>`)
+}
+
+func main() {
+	args := args()
+	jumptable := map[string]func([]string) error{
+		"test":  gotest,
+		"build": gobuild,
+	}
+	if len(args) == 0 {
+		usage()
+		return
+	}
+	if f, ok := jumptable[args[0]]; !ok {
+		usage()
+		log.Fatal("can't find action", args[0], jumptable[args[0]])
+	} else {
+		f(args[1:])
 	}
 }
