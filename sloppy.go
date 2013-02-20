@@ -124,7 +124,7 @@ func sloppifyHelper(args []string) (outdir string) {
 	return sloppify(pkgname)
 }
 
-func gocmd(dir string, args ...string) error {
+func gocmd(keeptemp bool, dir string, args ...string) error {
 	cmd := exec.Command("go", args...)
 	if dir != "" {
 		cmd.Dir = dir
@@ -134,14 +134,22 @@ func gocmd(dir string, args ...string) error {
 	if err := cmd.Start(); err != nil {
 		log.Fatal("Cannot execute go tool", err)
 	}
+	defer func() {
+		if !keeptemp {
+			os.RemoveAll(dir)
+		}
+	}()
 	return cmd.Wait()
 }
 
 func gotest(args []string) error {
-	return gocmd(sloppifyHelper(args), os.Args[1:]...)
+	keeptemp := flag.Bool("keeptemp", false, "keep temporary .go files after fixed by goproxy")
+	flag.Parse()
+	return gocmd(*keeptemp, sloppifyHelper(args), os.Args[1:]...)
 }
 
 func gobuild(args []string) error {
+	keeptemp := flag.Bool("keeptemp", false, "keep temporary .go files after fixed by goproxy")
 	output := flag.String("o", "", "output directory")
 	flag.Parse()
 	if *output == "" {
@@ -155,7 +163,7 @@ func gobuild(args []string) error {
 		output = &name
 	}
 	goargs := append(flag.Args(), "-o", filepath.Join("..", *output))
-	return gocmd(sloppifyHelper(args), goargs...)
+	return gocmd(*keeptemp, sloppifyHelper(args), goargs...)
 }
 
 func usage() {
