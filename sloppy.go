@@ -12,14 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 )
-
-func prtype(obj interface{}) {
-	fmt.Println(reflect.TypeOf(obj))
-	fmt.Printf("%+#v\n", obj)
-}
 
 func parseDir(path string, mode parser.Mode) (map[string]*PatchableFile, error) {
 	m := make(map[string]*PatchableFile)
