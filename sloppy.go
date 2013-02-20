@@ -144,10 +144,17 @@ func gotest(args []string) error {
 func gobuild(args []string) error {
 	output := flag.String("o", "", "output directory")
 	flag.Parse()
-	goargs := os.Args[1:]
-	if *output != "" {
-		goargs = append(flag.Args(), "-o", filepath.Join("..", *output))
+	if *output == "" {
+		// TODO(elazar): make sure nothing funny happens when having symlinks in path
+		// maybe prefer paths withing $GOPATH?
+		wd, err := os.Getwd()
+		if err != nil {
+			log.Fatalln("Can't get CWD:", err)
+		}
+		name := filepath.Base(wd)
+		output = &name
 	}
+	goargs := append(flag.Args(), "-o", filepath.Join("..", *output))
 	return gocmd(sloppifyHelper(args), goargs...)
 }
 
