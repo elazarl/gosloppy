@@ -46,11 +46,11 @@ func (p *patchUnused) UnusedObj(obj *ast.Object) {
 	if obj.Kind == ast.Fun {
 		return
 	}
-	p.patches = append(p.patches, &Patch{obj.Decl.(ast.Node).End(), ";var _ = " + obj.Name})
+	p.patches = append(p.patches, NewInsertPatch(obj.Decl.(ast.Node).End(), ";var _ = "+obj.Name))
 }
 
 func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
-	p.patches = append(p.patches, &Patch{imp.Pos(), "_ "})
+	p.patches = append(p.patches, NewInsertPatch(imp.Pos(), "_ "))
 }
 
 func buildSloppy(srcdir, outdir string) error {

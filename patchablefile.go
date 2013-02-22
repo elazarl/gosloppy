@@ -17,8 +17,17 @@ type PatchableFile struct {
 }
 
 type Patch struct {
-	Pos    token.Pos
+	Start  token.Pos
+	End    token.Pos
 	Insert string
+}
+
+func NewInsertPatch(pos token.Pos, insert string) *Patch {
+	return &Patch{pos, pos, insert}
+}
+
+func NewReplacePatch(nd ast.Node, replacement string) *Patch {
+	return &Patch{nd.Pos(), nd.End(), replacement}
 }
 
 func ParsePatchable(name string) (*PatchableFile, error) {
@@ -43,7 +52,7 @@ type Patches []*Patch
 
 func (p Patches) Len() int           { return len(p) }
 func (p Patches) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p Patches) Less(i, j int) bool { return p[i].Pos < p[j].Pos }
+func (p Patches) Less(i, j int) bool { return p[i].Start < p[j].Start }
 
 func sorted(patches []*Patch) Patches {
 	sorted := make(Patches, len(patches))
@@ -61,6 +70,8 @@ func write(oldn *int, err *error, w io.Writer, s string) {
 	}
 }
 
+// Write the file with patches applied in that order.
+// Note: If patches contradicts each other, behaviour is undefined.
 func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []*Patch) (total int, err error) {
 	defer func() {
 		if r := recover(); r != nil && err == nil {
@@ -71,11 +82,11 @@ func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []*Patch
 	start, end := p.Fset.Position(nd.Pos()), p.Fset.Position(nd.End())
 	prev := start.Offset
 	for _, patch := range sorted {
-		if nd.Pos() <= patch.Pos && nd.End() >= patch.Pos {
-			pos := p.Fset.Position(patch.Pos)
+		if nd.Pos() <= patch.Start && nd.End() >= patch.Start {
+			pos := p.Fset.Position(patch.Start)
 			write(&total, &err, w, p.Orig[prev:pos.Offset])
 			write(&total, &err, w, patch.Insert)
-			prev = pos.Offset
+			prev = p.Fset.Position(patch.End).Offset
 		}
 	}
 	if prev < end.Offset {
