@@ -53,12 +53,13 @@ f   ( ) {
 	buf.Reset()
 	patchable.FprintPatched(buf, file, Patches{NewInsertPatch(file.Decls[0].Pos(), "/* before */"),
 		NewInsertPatch(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
+		NewReplacePatch(file.Decls[0].(*ast.FuncDecl).Name, "g"),
 		NewInsertPatch(file.Package, "/* package */")})
 	exp =
 		`/* package */package main
 /* before */func
 
-/* f */f   ( ) {
+/* f */g   ( ) {
         }`
 	if buf.String() != exp {
 		t.Errorf("Expected ===:\n%s\nActual ===:\n%s\n PatchableFile differ from expected", exp, buf.String())
