@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/elazarl/gosloppy/patch"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -15,8 +16,8 @@ import (
 	"strings"
 )
 
-func parseDir(path string, mode parser.Mode) (map[string]*PatchableFile, error) {
-	m := make(map[string]*PatchableFile)
+func parseDir(path string, mode parser.Mode) (map[string]*patch.PatchableFile, error) {
+	m := make(map[string]*patch.PatchableFile)
 	lst, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -32,25 +33,25 @@ func parseDir(path string, mode parser.Mode) (map[string]*PatchableFile, error) 
 			if err != nil {
 				return nil, err
 			}
-			m[info.Name()] = &PatchableFile{info.Name(), file, fset, string(buf)}
+			m[info.Name()] = &patch.PatchableFile{info.Name(), file, fset, string(buf)}
 		}
 	}
 	return m, nil
 }
 
 type patchUnused struct {
-	patches Patches
+	patches patch.Patches
 }
 
 func (p *patchUnused) UnusedObj(obj *ast.Object) {
 	if obj.Kind == ast.Fun {
 		return
 	}
-	p.patches = append(p.patches, NewInsertPatch(obj.Decl.(ast.Node).End(), ";var _ = "+obj.Name))
+	p.patches = append(p.patches, patch.NewInsertPatch(obj.Decl.(ast.Node).End(), ";var _ = "+obj.Name))
 }
 
 func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
-	p.patches = append(p.patches, NewInsertPatch(imp.Pos(), "_ "))
+	p.patches = append(p.patches, patch.NewInsertPatch(imp.Pos(), "_ "))
 }
 
 func normalize(imp string) string {
@@ -64,14 +65,14 @@ func normalize(imp string) string {
 // ie, if one's base package path is "foo", and he compiles package
 // $GOPATH/src/foo, which contains import to "foo/bar", it'll convert this import
 // into "./bar", so that it'll compile.
-func subpackageToRelative(basepkg, pkg string, file *ast.File) (patches Patches) {
+func subpackageToRelative(basepkg, pkg string, file *ast.File) (patches patch.Patches) {
 	for _, imp := range file.Imports {
 		if filepath.HasPrefix(normalize(imp.Path.Value), basepkg) {
 			rel, err := filepath.Rel(imp.Path.Value, pkg)
 			if err != nil {
 				log.Fatal("can't happen", err)
 			}
-			patches = append(patches, NewReplacePatch(imp.Path, rel))
+			patches = append(patches, patch.NewReplacePatch(imp.Path, rel))
 		}
 	}
 	return
@@ -90,11 +91,11 @@ func buildSloppy(pkg *build.Package, srcdir, outdir string) error {
 	for _, info := range lst {
 		name := info.Name()
 		if strings.HasSuffix(name, ".go") {
-			patchable, err := ParsePatchable(filepath.Join(srcdir, name))
+			patchable, err := patch.ParsePatchable(filepath.Join(srcdir, name))
 			if err != nil {
 				return err
 			}
-			patches := &patchUnused{Patches{}}
+			patches := &patchUnused{patch.Patches{}}
 			UnusedInFile(patchable.File, patches)
 			file, err := os.Create(filepath.Join(outdir, name))
 			if err != nil {
@@ -118,9 +119,8 @@ func args() (args []string) {
 	return
 }
 
-func sloppify(pkgname string) (sloppified string) {
+func sloppify(pkgname, outdir string) (sloppified string) {
 	pkgdir := "."
-	outdir := "__gosloppy"
 	pkg, err := build.Import(pkgname, "", build.FindOnly)
 	if err != nil {
 		log.Fatal("Can't find package '", pkgname, "': ", err)
@@ -139,10 +139,11 @@ func sloppifyHelper(args []string) (outdir string) {
 	if len(args) > 0 {
 		pkgname = args[0]
 	}
-	return sloppify(pkgname)
+	return sloppify(pkgname, "__gosloppy")
 }
 
 func gocmd(keeptemp bool, dir string, args ...string) error {
+	fmt.Println("EXEC:", args)
 	cmd := exec.Command("go", args...)
 	if dir != "" {
 		cmd.Dir = dir
@@ -181,7 +182,7 @@ func gobuild(args []string) error {
 		output = &name
 	}
 	goargs := append(flag.Args(), "-o", filepath.Join("..", *output))
-	return gocmd(*keeptemp, sloppifyHelper(args), goargs...)
+	return gocmd(*keeptemp, sloppifyHelper(goargs), goargs...)
 }
 
 func usage() {

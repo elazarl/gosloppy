@@ -1,4 +1,4 @@
-package main
+package patch
 
 import (
 	"go/ast"

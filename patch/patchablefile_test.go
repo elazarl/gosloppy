@@ -1,10 +1,21 @@
-package main
+package patch
 
 import (
 	"bytes"
 	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
 )
+
+func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", code, parser.DeclarationErrors)
+	if err != nil {
+		t.Fatal("Cannot parse code", err)
+	}
+	return file, fset
+}
 
 func TestPatchableFileNoPatches(t *testing.T) {
 	var body = `package main
