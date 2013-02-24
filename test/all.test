@@ -1,0 +1,39 @@
+#!/bin/bash
+
+function check {
+	[ -f "./$1" ] || (echo no binary $1;false)
+	OUT=$(./$@)
+	[ SUCCESS = "$OUT" ] || (echo $@ "->" $OUT != SUCCESS;false)
+}
+
+function die {
+	echo FAILED $@
+	exit 1
+}
+export GOSLOPPY=$(cd ..;echo `pwd`/gosloppy)
+[ -f $GOSLOPPY ] || die gosloppy not built: $GOSLOPPY
+find . -maxdepth 1 -name test\* -type d|while read d; do
+	echo Testing $d
+	(
+	cd $d
+	GOPATH=""
+	if [ -n "gopath*" ]; then
+		GOPATH=(gopath*)
+		GOPATH=$(echo "${GOPATH[*]}"})
+	fi
+	if [ -f buildpkg ]; then
+		CMD="$GOSLOPPY build `cat buildpkg` -o tmp"
+		$CMD || die building $CMD
+	else
+		CMD="$GOSLOPPY build"
+		$CMD || die buidling $CMD
+		check $(basename `pwd`) || die $CMD
+		CMD="$GOSLOPPY build -o ensure_minus_o"
+		$CMD || die buidling $CMD
+		check ensure_minus_o || die $CMD
+		if [ -n "*_test.go" ]; then
+			$GOSLOPPY test || die $d test
+		fi
+	fi
+	)
+done
