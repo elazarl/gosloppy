@@ -47,11 +47,11 @@ func (p *patchUnused) UnusedObj(obj *ast.Object) {
 	if obj.Kind == ast.Fun {
 		return
 	}
-	p.patches = append(p.patches, patch.NewInsertPatch(obj.Decl.(ast.Node).End(), ";var _ = "+obj.Name))
+	p.patches = append(p.patches, patch.Insert(obj.Decl.(ast.Node).Pos(), ";var _ = "+obj.Name))
 }
 
 func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
-	p.patches = append(p.patches, patch.NewInsertPatch(imp.Pos(), "_ "))
+	p.patches = append(p.patches, patch.Insert(imp.Pos(), "_ "))
 }
 
 func normalize(imp string) string {

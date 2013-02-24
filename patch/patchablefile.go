@@ -22,7 +22,7 @@ type Patch struct {
 	Insert string
 }
 
-func NewInsertPatch(pos token.Pos, insert string) *Patch {
+func Insert(pos token.Pos, insert string) *Patch {
 	return &Patch{pos, pos, insert}
 }
 

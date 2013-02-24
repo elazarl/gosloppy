@@ -51,7 +51,7 @@ f   ( ) {
 	buf := new(bytes.Buffer)
 	file, fset := parse(body, t)
 	patchable := &PatchableFile{"", file, fset, body}
-	patchable.FprintPatched(buf, file, Patches{NewInsertPatch(file.Decls[0].Pos(), "/* before */")})
+	patchable.FprintPatched(buf, file, Patches{Insert(file.Decls[0].Pos(), "/* before */")})
 	exp :=
 		`package main
 /* before */func
@@ -62,10 +62,10 @@ f   ( ) {
 		t.Errorf("Expected ===:\n%s\nActual ===:\n%s\n PatchableFile differ from expected", exp, buf.String())
 	}
 	buf.Reset()
-	patchable.FprintPatched(buf, file, Patches{NewInsertPatch(file.Decls[0].Pos(), "/* before */"),
-		NewInsertPatch(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
+	patchable.FprintPatched(buf, file, Patches{Insert(file.Decls[0].Pos(), "/* before */"),
+		Insert(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
 		NewReplacePatch(file.Decls[0].(*ast.FuncDecl).Name, "g"),
-		NewInsertPatch(file.Package, "/* package */")})
+		Insert(file.Package, "/* package */")})
 	exp =
 		`/* package */package main
 /* before */func
@@ -76,7 +76,7 @@ f   ( ) {
 		t.Errorf("Expected ===:\n%s\nActual ===:\n%s\n PatchableFile differ from expected", exp, buf.String())
 	}
 	buf.Reset()
-	patchable.FprintPatched(buf, file.Decls[0], Patches{NewInsertPatch(file.Decls[0].Pos(), "/* before */")})
+	patchable.FprintPatched(buf, file.Decls[0], Patches{Insert(file.Decls[0].Pos(), "/* before */")})
 	exp =
 		`/* before */func
 
@@ -87,9 +87,9 @@ f   ( ) {
 	}
 	buf.Reset()
 	patchable.FprintPatched(buf, file.Decls[0], Patches{
-		NewInsertPatch(file.Decls[0].Pos(), "/* before */"),
-		NewInsertPatch(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
-		NewInsertPatch(file.Package, "/* import */")})
+		Insert(file.Decls[0].Pos(), "/* before */"),
+		Insert(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
+		Insert(file.Package, "/* import */")})
 	exp =
 		`/* before */func
 
