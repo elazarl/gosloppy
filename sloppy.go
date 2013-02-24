@@ -53,7 +53,31 @@ func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
 	p.patches = append(p.patches, NewInsertPatch(imp.Pos(), "_ "))
 }
 
-func buildSloppy(srcdir, outdir string) error {
+func normalize(imp string) string {
+	if imp[0] == '"' {
+		return imp[1 : len(imp)-1]
+	}
+	return imp
+}
+
+// given a package, it'll make all subpackages relative paths to a certain base
+// ie, if one's base package path is "foo", and he compiles package
+// $GOPATH/src/foo, which contains import to "foo/bar", it'll convert this import
+// into "./bar", so that it'll compile.
+func subpackageToRelative(basepkg, pkg string, file *ast.File) (patches Patches) {
+	for _, imp := range file.Imports {
+		if filepath.HasPrefix(normalize(imp.Path.Value), basepkg) {
+			rel, err := filepath.Rel(imp.Path.Value, pkg)
+			if err != nil {
+				log.Fatal("can't happen", err)
+			}
+			patches = append(patches, NewReplacePatch(imp.Path, rel))
+		}
+	}
+	return
+}
+
+func buildSloppy(pkg *build.Package, srcdir, outdir string) error {
 	//files, err := parseDir(srcDir, parser.ParseComments)
 	lst, err := ioutil.ReadDir(srcdir)
 	if err != nil {
@@ -97,14 +121,14 @@ func args() (args []string) {
 func sloppify(pkgname string) (sloppified string) {
 	pkgdir := "."
 	outdir := "__gosloppy"
-	if pkgname != "" {
-		p, err := build.Import(pkgname, "", build.FindOnly)
-		if err != nil {
-			log.Fatal("Can't find package '", pkgname, "': ", err)
-		}
-		pkgdir = p.Dir
+	pkg, err := build.Import(pkgname, "", build.FindOnly)
+	if err != nil {
+		log.Fatal("Can't find package '", pkgname, "': ", err)
 	}
-	if err := buildSloppy(pkgdir, outdir); err != nil {
+	if pkgname != "" {
+		pkgdir = pkg.Dir
+	}
+	if err := buildSloppy(pkg, pkgdir, outdir); err != nil {
 		log.Fatal(err)
 	}
 	return filepath.Join(pkgdir, outdir)
