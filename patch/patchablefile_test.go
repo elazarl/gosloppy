@@ -64,7 +64,7 @@ f   ( ) {
 	buf.Reset()
 	patchable.FprintPatched(buf, file, Patches{Insert(file.Decls[0].Pos(), "/* before */"),
 		Insert(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
-		NewReplacePatch(file.Decls[0].(*ast.FuncDecl).Name, "g"),
+		Replace(file.Decls[0].(*ast.FuncDecl).Name, "g"),
 		Insert(file.Package, "/* package */")})
 	exp =
 		`/* package */package main

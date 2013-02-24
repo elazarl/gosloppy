@@ -72,7 +72,7 @@ func subpackageToRelative(basepkg, pkg string, file *ast.File) (patches patch.Pa
 			if err != nil {
 				log.Fatal("can't happen", err)
 			}
-			patches = append(patches, patch.NewReplacePatch(imp.Path, rel))
+			patches = append(patches, patch.Replace(imp.Path, rel))
 		}
 	}
 	return

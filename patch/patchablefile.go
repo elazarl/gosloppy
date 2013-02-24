@@ -26,7 +26,7 @@ func Insert(pos token.Pos, insert string) *Patch {
 	return &Patch{pos, pos, insert}
 }
 
-func NewReplacePatch(nd ast.Node, replacement string) *Patch {
+func Replace(nd ast.Node, replacement string) *Patch {
 	return &Patch{nd.Pos(), nd.End(), replacement}
 }
 
