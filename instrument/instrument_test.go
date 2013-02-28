@@ -18,7 +18,7 @@ func TestDir(t *testing.T) {
 		file("a.go", "package test1"), file("a_test.go", "package test1"),
 	)
 	OrFail(fs.Build("."), t)
-	defer func() { OrFail(fs.Remove("."), t) }()
+	defer func() { OrFail(os.RemoveAll("test1"), t) }()
 	pkg, err := ImportDir("test1", "test1")
 	OrFail(err, t)
 	if fmt.Sprint(pkg.Files()) != "[test1/a.go test1/a_test.go]" {
@@ -41,7 +41,7 @@ func TestGopath(t *testing.T) {
 		file("a.go", "package mypkg"), file("a_test.go", "package mypkg"),
 	)
 	OrFail(fs.Build("."), t)
-	defer func() { OrFail(fs.Remove("."), t) }()
+	defer func() { OrFail(os.RemoveAll("gopath"), t) }()
 	gopath, err := filepath.Abs("gopath")
 	OrFail(err, t)
 	prevgopath := build.Default.GOPATH
@@ -69,7 +69,7 @@ func TestSubDir(t *testing.T) {
 		file("base.go", `package test1;import "./sub1"`), file("a_test.go", `package test1;import "./sub2"`),
 	)
 	OrFail(fs.Build("."), t)
-	defer func() { OrFail(fs.Remove("."), t) }()
+	defer func() { OrFail(os.RemoveAll("test"), t) }()
 	func() {
 		pkg, err := ImportDir("test", "test")
 		OrFail(err, t)
@@ -147,7 +147,7 @@ func TestGopathSubDir(t *testing.T) {
 	defer func() { build.Default.GOPATH = prevgopath }()
 	build.Default.GOPATH = gopath
 	OrFail(fs.Build("."), t)
-	defer func() { OrFail(fs.Remove("."), t) }()
+	defer func() { OrFail(os.RemoveAll("gopath"), t) }()
 	func() {
 		pkg, err := Import("mypkg", "mypkg")
 		OrFail(err, t)
@@ -300,10 +300,6 @@ func (fs *Fs) recursiveEqual(path string, info os.FileInfo, t *testing.T) {
 			t.Fatal(path, "expected content", fs.Content, "got", string(content))
 		}
 	}
-}
-
-func (fs *Fs) Remove(path string) error {
-	return os.RemoveAll(filepath.Join(path, fs.Name))
 }
 
 func (fs *Fs) Build(path string) error {
