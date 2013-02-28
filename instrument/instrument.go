@@ -25,6 +25,18 @@ func (i *Instrumentable) Files() (files []string) {
 	return
 }
 
+// Import gives an Instrumentable for a given package name, it will instrument pkgname
+// and all subpacakges of basepkg that pkgname imports.
+// For example, if we have packages a/x a/b and a/b/c in GOPATH
+//     gopath/src
+//         a/
+//           x/
+//           b/
+//             c/
+// and package c imports packages a/x and a/b, calling Import("a", "a/b/c") will instrument
+// packages a/b/c, a/b and a/x. Calling Import("a/b", "a/b/c") will instrument
+// pacakges a/b and a/b/c. Calling Import("a/b/c", "a/b/c") will instrument package "a/b/c"
+// alone.
 func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	if pkg, err := build.Import(pkgname, "", 0); err != nil {
 		return nil, err
@@ -34,6 +46,7 @@ func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	panic("unreachable")
 }
 
+// ImportDir gives a single instrumentable golang package. See Import.
 func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
 	if pkg, err := build.ImportDir(pkgname, 0); err != nil {
 		return nil, err
@@ -43,6 +56,7 @@ func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
 	panic("unreachable")
 }
 
+// IsInGopath returns whether the Instrumentable is a package in a standalone directory or in GOPATH
 func (i *Instrumentable) IsInGopath() bool {
 	return i.pkg.ImportPath != "."
 }
