@@ -19,18 +19,20 @@ func TestDir(t *testing.T) {
 	)
 	OrFail(fs.Build("."), t)
 	defer func() { OrFail(fs.Remove("."), t) }()
-	dir, err := ImportDir("test1", "test1")
+	pkg, err := ImportDir("test1", "test1")
 	OrFail(err, t)
-	if fmt.Sprint(dir.Files()) != "[test1/a.go test1/a_test.go]" {
-		t.Fatal("Expected [a.go a_test.go] got", dir.Files())
+	if fmt.Sprint(pkg.Files()) != "[test1/a.go test1/a_test.go]" {
+		t.Fatal("Expected [a.go a_test.go] got", pkg.Files())
 	}
 	OrFail(os.Mkdir("temp", 0755), t)
 	defer func() { OrFail(os.RemoveAll("temp"), t) }()
-	OrFail(dir.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+	OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
 		return patch.Patches{patch.Replace(pf.File, "koko")}
 	}), t)
-	assertFileIs("temp/a.go", "koko", t)
-	assertFileIs("temp/a_test.go", "koko", t)
+	dir("temp",
+		file("a.go", "koko"),
+		file("a_test.go", "koko"),
+	).AssertEqual("temp", t)
 }
 
 func TestGopath(t *testing.T) {
@@ -45,15 +47,17 @@ func TestGopath(t *testing.T) {
 	prevgopath := build.Default.GOPATH
 	defer func() { build.Default.GOPATH = prevgopath }()
 	build.Default.GOPATH = gopath
-	dir, err := Import("mypkg", "mypkg")
+	pkg, err := Import("mypkg", "mypkg")
 	OrFail(err, t)
 	OrFail(os.Mkdir("temp", 0755), t)
 	defer func() { OrFail(os.RemoveAll("temp"), t) }()
-	OrFail(dir.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+	OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
 		return patch.Patches{patch.Replace(pf.File, "koko")}
 	}), t)
-	assertFileIs("temp/a.go", "koko", t)
-	assertFileIs("temp/a_test.go", "koko", t)
+	dir("temp",
+		file("a.go", "koko"),
+		file("a_test.go", "koko"),
+	).AssertEqual("temp", t)
 }
 
 func TestSubDir(t *testing.T) {
@@ -327,12 +331,4 @@ func dir(name string, children ...*Fs) *Fs {
 
 func file(name, content string) *Fs {
 	return &Fs{name, content, nil}
-}
-
-func assertFileIs(filename, content string, t *testing.T) {
-	b, err := ioutil.ReadFile(filename)
-	OrFail(err, t)
-	if string(b) != content {
-		t.Error("File", filename, "Expected", content, "Actually", string(b))
-	}
 }
