@@ -76,8 +76,7 @@ func fileinfos(infos []os.FileInfo) string {
 	return string(b)
 }
 
-// Compare returns whether a certain *Fs node is equal to a file
-// NOT recursive.
+// Compare returns whether a certain *Fs node is equal to an existing file tree
 func (fs *Fs) recursiveEqual(path string, info os.FileInfo, t *testing.T) {
 	path = filepath.Join(path, info.Name())
 	if fs.Name != info.Name() {
