@@ -43,13 +43,33 @@ func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
 	panic("unreachable")
 }
 
+func (i *Instrumentable) IsInGopath() bool {
+	return i.pkg.ImportPath != "."
+}
+
+func (i *Instrumentable) relevantImport(imp string) bool {
+	if !i.IsInGopath() && build.IsLocalImport(imp) {
+		imp = filepath.Clean(filepath.Join(i.pkg.Dir, imp))
+	}
+	return filepath.HasPrefix(imp, i.basepkg)
+}
+
+func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
+	if build.IsLocalImport(pkg) {
+		return ImportDir(i.basepkg, filepath.Join(i.pkg.Dir, pkg))
+	}
+	return Import(i.basepkg, pkg)
+}
+
 func (i *Instrumentable) Instrument(outdir string, f func(file *patch.PatchableFile) patch.Patches) error {
-	for _, imp := range i.pkg.Imports {
-		if filepath.HasPrefix(imp, i.basepkg) {
-			if imp, err := Import(i.basepkg, imp); err != nil {
-				return err
-			} else {
-				imp.Instrument(outdir, f)
+	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
+		for _, imp := range imps {
+			if i.relevantImport(imp) {
+				if imp, err := i.doimport(imp); err != nil {
+					return err
+				} else {
+					imp.Instrument(outdir, f)
+				}
 			}
 		}
 	}

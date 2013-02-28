@@ -90,11 +90,11 @@ func (fs *Fs) recursiveEqual(path string, info os.FileInfo, t *testing.T) {
 		children, err := ioutil.ReadDir(path)
 		orFail(err, t)
 		if len(children) != len(fs.Children) {
-			t.Fatal("expected", fs.Children, "got", fileinfos(children))
+			t.Fatal("expected", fs.List(), "got", fileinfos(children))
 		}
 		for i, child := range fs.List() {
 			if child.Name != children[i].Name() {
-				t.Fatal("expected", fs.Children, "got", fileinfos(children))
+				t.Fatal("expected", fs.List(), "got", fileinfos(children))
 			}
 			child.recursiveEqual(path, children[i], t)
 		}
@@ -190,7 +190,7 @@ func TestSubDir(t *testing.T) {
 	dir("temp",
 		dir("sub1", file("sub1.go", "koko")),
 		dir("sub2", file("sub2.go", "koko")),
-		file("a.go", "koko"),
+		file("base.go", "koko"),
 		file("a_test.go", "koko"),
 	).AssertEqual("temp", t)
 }
