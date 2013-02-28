@@ -11,6 +11,87 @@ import (
 	"testing"
 )
 
+func TestDir(t *testing.T) {
+	fs := dir(
+		"test1",
+		file("a.go", "package test1"), file("a_test.go", "package test1"),
+	)
+	OrFail(fs.Build("."), t)
+	defer func() { OrFail(fs.Remove("."), t) }()
+	dir, err := ImportDir("test1", "test1")
+	OrFail(err, t)
+	if fmt.Sprint(dir.Files()) != "[test1/a.go test1/a_test.go]" {
+		t.Fatal("Expected [a.go a_test.go] got", dir.Files())
+	}
+	OrFail(os.Mkdir("temp", 0755), t)
+	defer func() { OrFail(os.RemoveAll("temp"), t) }()
+	OrFail(dir.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+		return patch.Patches{patch.Replace(pf.File, "koko")}
+	}), t)
+	assertFileIs("temp/a.go", "koko", t)
+	assertFileIs("temp/a_test.go", "koko", t)
+}
+
+func TestSubDir(t *testing.T) {
+	fs := dir(
+		"test",
+		dir("sub1", file("sub1.go", "package sub1")),
+		dir("sub2", file("sub2.go", "package sub2")),
+		dir("sub3", file("sub3.go", `package sub3;import "../sub1"`)),
+		file("base.go", `package test1;import "./sub1"`), file("a_test.go", `package test1;import "./sub2"`),
+	)
+	OrFail(fs.Build("."), t)
+	defer func() { OrFail(fs.Remove("."), t) }()
+	func() {
+		pkg, err := ImportDir("test", "test")
+		OrFail(err, t)
+		if fmt.Sprint(pkg.Files()) != "[test/base.go test/a_test.go]" {
+			t.Fatal("Expected [test/base.go test/a_test.go] got", pkg.Files())
+		}
+		OrFail(os.Mkdir("temp", 0755), t)
+		defer func() { OrFail(os.RemoveAll("temp"), t) }()
+		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+			return patch.Patches{patch.Replace(pf.File, "koko")}
+		}), t)
+		dir("temp",
+			dir("sub1", file("sub1.go", "koko")),
+			dir("sub2", file("sub2.go", "koko")),
+			file("base.go", "koko"), file("a_test.go", "koko"),
+		).AssertEqual("temp", t)
+	}()
+	func() {
+		pkg, err := ImportDir("test", "test/sub3")
+		OrFail(err, t)
+		if fmt.Sprint(pkg.Files()) != "[test/sub3/sub3.go]" {
+			t.Fatal("Expected [test/sub3/sub3.go] got", pkg.Files())
+		}
+		OrFail(os.Mkdir("temp", 0755), t)
+		defer func() { OrFail(os.RemoveAll("temp"), t) }()
+		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+			return patch.Patches{patch.Replace(pf.File, "koko")}
+		}), t)
+		dir("temp",
+			dir("sub1", file("sub1.go", "koko")),
+			dir("sub3", file("sub3.go", "koko")),
+		).AssertEqual("temp", t)
+	}()
+	func() {
+		pkg, err := ImportDir("test", "test/sub2")
+		OrFail(err, t)
+		if fmt.Sprint(pkg.Files()) != "[test/sub2/sub2.go]" {
+			t.Fatal("Expected [test/sub2/sub2.go] got", pkg.Files())
+		}
+		OrFail(os.Mkdir("temp", 0755), t)
+		defer func() { OrFail(os.RemoveAll("temp"), t) }()
+		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+			return patch.Patches{patch.Replace(pf.File, "koko")}
+		}), t)
+		dir("temp",
+			dir("sub2", file("sub2.go", "koko")),
+		).AssertEqual("temp", t)
+	}()
+}
+
 func OrFail(err error, t *testing.T) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
@@ -143,85 +224,4 @@ func assertFileIs(filename, content string, t *testing.T) {
 	if string(b) != content {
 		t.Error("File", filename, "Expected", content, "Actually", string(b))
 	}
-}
-
-func TestDir(t *testing.T) {
-	fs := dir(
-		"test1",
-		file("a.go", "package test1"), file("a_test.go", "package test1"),
-	)
-	OrFail(fs.Build("."), t)
-	defer func() { OrFail(fs.Remove("."), t) }()
-	dir, err := ImportDir("test1", "test1")
-	OrFail(err, t)
-	if fmt.Sprint(dir.Files()) != "[test1/a.go test1/a_test.go]" {
-		t.Fatal("Expected [a.go a_test.go] got", dir.Files())
-	}
-	OrFail(os.Mkdir("temp", 0755), t)
-	defer func() { OrFail(os.RemoveAll("temp"), t) }()
-	OrFail(dir.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
-		return patch.Patches{patch.Replace(pf.File, "koko")}
-	}), t)
-	assertFileIs("temp/a.go", "koko", t)
-	assertFileIs("temp/a_test.go", "koko", t)
-}
-
-func TestSubDir(t *testing.T) {
-	fs := dir(
-		"test",
-		dir("sub1", file("sub1.go", "package sub1")),
-		dir("sub2", file("sub2.go", "package sub2")),
-		dir("sub3", file("sub3.go", `package sub3;import "../sub1"`)),
-		file("base.go", `package test1;import "./sub1"`), file("a_test.go", `package test1;import "./sub2"`),
-	)
-	OrFail(fs.Build("."), t)
-	defer func() { OrFail(fs.Remove("."), t) }()
-	func() {
-		pkg, err := ImportDir("test", "test")
-		OrFail(err, t)
-		if fmt.Sprint(pkg.Files()) != "[test/base.go test/a_test.go]" {
-			t.Fatal("Expected [test/base.go test/a_test.go] got", pkg.Files())
-		}
-		OrFail(os.Mkdir("temp", 0755), t)
-		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
-			return patch.Patches{patch.Replace(pf.File, "koko")}
-		}), t)
-		dir("temp",
-			dir("sub1", file("sub1.go", "koko")),
-			dir("sub2", file("sub2.go", "koko")),
-			file("base.go", "koko"), file("a_test.go", "koko"),
-		).AssertEqual("temp", t)
-	}()
-	func() {
-		pkg, err := ImportDir("test", "test/sub3")
-		OrFail(err, t)
-		if fmt.Sprint(pkg.Files()) != "[test/sub3/sub3.go]" {
-			t.Fatal("Expected [test/sub3/sub3.go] got", pkg.Files())
-		}
-		OrFail(os.Mkdir("temp", 0755), t)
-		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
-			return patch.Patches{patch.Replace(pf.File, "koko")}
-		}), t)
-		dir("temp",
-			dir("sub1", file("sub1.go", "koko")),
-			dir("sub3", file("sub3.go", "koko")),
-		).AssertEqual("temp", t)
-	}()
-	func() {
-		pkg, err := ImportDir("test", "test/sub2")
-		OrFail(err, t)
-		if fmt.Sprint(pkg.Files()) != "[test/sub2/sub2.go]" {
-			t.Fatal("Expected [test/sub2/sub2.go] got", pkg.Files())
-		}
-		OrFail(os.Mkdir("temp", 0755), t)
-		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
-			return patch.Patches{patch.Replace(pf.File, "koko")}
-		}), t)
-		dir("temp",
-			dir("sub2", file("sub2.go", "koko")),
-		).AssertEqual("temp", t)
-	}()
 }
