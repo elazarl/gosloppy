@@ -2,8 +2,11 @@ package instrument
 
 import (
 	"go/build"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/elazarl/gosloppy/patch"
 )
@@ -25,8 +28,54 @@ func (i *Instrumentable) Files() (files []string) {
 	return
 }
 
+var gopaths = append(filepath.SplitList(os.Getenv("GOPATH")), runtime.GOROOT())
+
+func isPrefixToGopath(path string) bool {
+	// one must give a valid path
+	for _, gopath := range gopaths {
+		if filepath.HasPrefix(gopath, path) {
+			return false
+		}
+	}
+	return true
+}
+
+func hasGoFile(infos []os.FileInfo) bool {
+	for _, info := range infos {
+		if strings.HasPrefix(info.Name(), ".go") {
+			return true
+		}
+	}
+	return false
+}
+
+func guessBasepkg(pkgdir string) string {
+	dir, err := filepath.Abs(pkgdir)
+	if err != nil {
+		panic(err)
+	}
+	for !isPrefixToGopath(dir) {
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return pkgdir
+		}
+		files, err := ioutil.ReadDir(dir)
+		if err != nil {
+			// maybe we climbed too much up (no perm?) - use the safe bet
+			return pkgdir
+		}
+		if !hasGoFile(files) {
+			return dir
+		}
+		dir = parent
+	}
+	return pkgdir
+}
+
 // Import gives an Instrumentable for a given package name, it will instrument pkgname
 // and all subpacakges of basepkg that pkgname imports.
+// Leave basepkg empty to have Import guess it for you.
+// The conservative default for basepkg is basepkg==pkgname.
 // For example, if we have packages a/x a/b and a/b/c in GOPATH
 //     gopath/src
 //         a/
@@ -41,6 +90,9 @@ func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	if pkg, err := build.Import(pkgname, "", 0); err != nil {
 		return nil, err
 	} else {
+		if basepkg == "" {
+			basepkg = guessBasepkg(pkg.Dir)
+		}
 		return &Instrumentable{pkg, basepkg}, nil
 	}
 	panic("unreachable")
@@ -75,12 +127,12 @@ func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
 	return Import(i.basepkg, pkg)
 }
 
-func (i *Instrumentable) Instrument(outdir string, f func(file *patch.PatchableFile) patch.Patches) error {
+func (i *Instrumentable) Instrument(outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
 	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
 		for _, imp := range imps {
 			if i.relevantImport(imp) {
 				if imp, err := i.doimport(imp); err != nil {
-					return err
+					return "", err
 				} else {
 					imp.Instrument(outdir, f)
 				}
@@ -93,14 +145,14 @@ func (i *Instrumentable) Instrument(outdir string, f func(file *patch.PatchableF
 		rel, err = filepath.Rel(i.basepkg, i.pkg.Dir)
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	finaldir := filepath.Join(outdir, rel)
 	if err := os.MkdirAll(finaldir, 0755); err != nil {
-		return err
+		return "", err
 	}
 	Instrument(finaldir, i.Files(), f)
-	return nil
+	return finaldir, nil
 }
 
 // Instrument parses all gofiles, invoke f on any file, and then writes it with the same name to outdir
