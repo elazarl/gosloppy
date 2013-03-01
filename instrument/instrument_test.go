@@ -60,6 +60,34 @@ func TestGopath(t *testing.T) {
 	).AssertEqual("temp", t)
 }
 
+func TestGuessSubpackage(t *testing.T) {
+	fs := dir(
+		"test",
+		dir("sub1", file("sub1.go", "package sub1")),
+		dir("sub2", file("sub2.go", "package sub2")),
+		dir("sub3", file("sub3.go", `package sub3;import "../sub1"`)),
+		file("base.go", `package test1;import "./sub1"`), file("a_test.go", `package test1;import "./sub2"`),
+	)
+	OrFail(fs.Build("."), t)
+	defer func() { OrFail(os.RemoveAll("test"), t) }()
+	func() {
+		pkg, err := ImportDir("", "test/sub3")
+		OrFail(err, t)
+		if fmt.Sprint(pkg.Files()) != "[test/sub3/sub3.go]" {
+			t.Fatal("Expected [test/sub3/sub3.go] got", pkg.Files())
+		}
+		OrFail(os.Mkdir("temp", 0755), t)
+		defer func() { OrFail(os.RemoveAll("temp"), t) }()
+		OrFail(pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+			return patch.Patches{patch.Replace(pf.File, "koko")}
+		}), t)
+		dir("temp",
+			dir("sub1", file("sub1.go", "koko")),
+			dir("sub3", file("sub3.go", "koko")),
+		).AssertEqual("temp", t)
+	}()
+}
+
 func TestSubDir(t *testing.T) {
 	fs := dir(
 		"test",
@@ -207,6 +235,14 @@ func TestGopathSubDir(t *testing.T) {
 	}()
 }
 
+func fatalCaller(t *testing.T, depth int, msgs ...interface{}) {
+	_, file, line, ok := runtime.Caller(depth + 1) // +1 to go up fatalCaller's stack
+	if !ok {
+		t.Fatal("Cannot get caller data")
+	}
+	t.Fatalf("%s:%d: %v", file, line, fmt.Sprintln(msgs...))
+}
+
 func OrFail(err error, t *testing.T) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
@@ -250,7 +286,7 @@ func (fs *Fs) List() (children []*Fs) {
 func (fs *Fs) AssertEqual(path string, t *testing.T) {
 	info, err := os.Stat(path)
 	OrFail(err, t)
-	fs.recursiveEqual(filepath.Dir(path), info, t)
+	fs.recursiveEqual(filepath.Dir(path), info, 2, t)
 }
 
 func (fs *Fs) String() string {
@@ -273,31 +309,31 @@ func fileinfos(infos []os.FileInfo) string {
 }
 
 // Compare returns whether a certain *Fs node is equal to an existing file tree
-func (fs *Fs) recursiveEqual(path string, info os.FileInfo, t *testing.T) {
+func (fs *Fs) recursiveEqual(path string, info os.FileInfo, depth int, t *testing.T) {
 	path = filepath.Join(path, info.Name())
 	if fs.Name != info.Name() {
-		t.Fatal(path, "expected", fs.Name)
+		fatalCaller(t, depth, path, "expected", fs.Name)
 	}
 	if fs.IsDir() != info.IsDir() {
-		t.Fatal(path, "isDir=", info.IsDir(), "expected", fs.IsDir())
+		fatalCaller(t, depth, path, "isDir=", info.IsDir(), "expected", fs.IsDir())
 	}
 	if fs.IsDir() {
 		children, err := ioutil.ReadDir(path)
 		OrFail(err, t)
 		if len(children) != len(fs.Children) {
-			t.Fatal("expected", fs.List(), "got", fileinfos(children))
+			fatalCaller(t, depth, "expected", fs.List(), "got", fileinfos(children))
 		}
 		for i, child := range fs.List() {
 			if child.Name != children[i].Name() {
-				t.Fatal("expected", fs.List(), "got", fileinfos(children))
+				fatalCaller(t, depth, "expected", fs.List(), "got", fileinfos(children))
 			}
-			child.recursiveEqual(path, children[i], t)
+			child.recursiveEqual(path, children[i], depth+1, t)
 		}
 	} else {
 		content, err := ioutil.ReadFile(path)
 		OrFail(err, t)
 		if fs.Content != string(content) {
-			t.Fatal(path, "expected content", fs.Content, "got", string(content))
+			fatalCaller(t, depth, path, "expected content", fs.Content, "got", string(content))
 		}
 	}
 }
