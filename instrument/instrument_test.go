@@ -92,6 +92,38 @@ func TestGuessSubpackage(t *testing.T) {
 	}()
 }
 
+func TestGuessSubpkgGopath(t *testing.T) {
+	fs := dir(
+		"gopath/src/mypkg",
+		dir("sub1", file("sub1.go", "package sub1")),
+		dir("sub2", file("sub2.go", "package sub2")),
+		dir("sub3", dir("subsub3", file("subsub3.go", `package subsub3;import "mypkg/sub1"`))),
+		file("base.go", `package test1;import "mypkg/sub1"`), file("a_test.go", `package test1;import "mypkg/sub2"`),
+	)
+	// TODO(elazar): find a way to use build.Context
+	gopath, err := filepath.Abs("gopath")
+	OrFail(err, t)
+	prevgopath := build.Default.GOPATH
+	defer func() { build.Default.GOPATH = prevgopath }()
+	build.Default.GOPATH = gopath
+	OrFail(fs.Build("."), t)
+	defer func() { OrFail(os.RemoveAll("gopath"), t) }()
+	func() {
+		pkg, err := Import("", "mypkg/sub3/subsub3")
+		OrFail(err, t)
+		_, err = pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+			return patch.Patches{patch.Replace(pf.File, "koko")}
+		})
+		OrFail(err, t)
+		dir("temp",
+			dir("mypkg",
+				dir("sub1", file("sub1.go", "koko")),
+				dir("sub3", dir("subsub3", file("subsub3.go", "koko"))),
+			),
+		) /*.AssertEqual("temp")*/
+	}()
+}
+
 func TestSubDir(t *testing.T) {
 	fs := dir(
 		"test",

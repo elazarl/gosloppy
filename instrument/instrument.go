@@ -2,11 +2,8 @@ package instrument
 
 import (
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/elazarl/gosloppy/patch"
 )
@@ -28,48 +25,8 @@ func (i *Instrumentable) Files() (files []string) {
 	return
 }
 
-var gopaths = append(filepath.SplitList(os.Getenv("GOPATH")), runtime.GOROOT())
-
-func isPrefixToGopath(path string) bool {
-	// one must give a valid path
-	for _, gopath := range gopaths {
-		if filepath.HasPrefix(gopath, path) {
-			return false
-		}
-	}
-	return true
-}
-
-func hasGoFile(infos []os.FileInfo) bool {
-	for _, info := range infos {
-		if strings.HasPrefix(info.Name(), ".go") {
-			return true
-		}
-	}
-	return false
-}
-
-func guessBasepkg(pkgdir string) string {
-	dir, err := filepath.Abs(pkgdir)
-	if err != nil {
-		panic(err)
-	}
-	for !isPrefixToGopath(dir) {
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return pkgdir
-		}
-		files, err := ioutil.ReadDir(dir)
-		if err != nil {
-			// maybe we climbed too much up (no perm?) - use the safe bet
-			return pkgdir
-		}
-		if !hasGoFile(files) {
-			return dir
-		}
-		dir = parent
-	}
-	return pkgdir
+func guessBasepkg(importpath string) string {
+	panic("not implemented")
 }
 
 // Import gives an Instrumentable for a given package name, it will instrument pkgname
@@ -91,7 +48,7 @@ func Import(basepkg, pkgname string) (*Instrumentable, error) {
 		return nil, err
 	} else {
 		if basepkg == "" {
-			basepkg = guessBasepkg(pkg.Dir)
+			basepkg = guessBasepkg(pkg.ImportPath)
 		}
 		return &Instrumentable{pkg, basepkg}, nil
 	}
