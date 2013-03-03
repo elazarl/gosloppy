@@ -2,7 +2,6 @@ package instrument
 
 import (
 	"fmt"
-	"github.com/elazarl/gosloppy/patch"
 	"go/build"
 	"io/ioutil"
 	"os"
@@ -10,6 +9,8 @@ import (
 	"runtime"
 	"sort"
 	"testing"
+
+	"github.com/elazarl/gosloppy/patch"
 )
 
 func TestDir(t *testing.T) {
@@ -92,6 +93,21 @@ func TestGuessSubpackage(t *testing.T) {
 	}()
 }
 
+func TestGuessStdlibPkg(t *testing.T) {
+	pkg, err := Import("", "io/ioutil")
+	OrFail(err, t)
+	OrFail(os.Mkdir("temp", 0755), t)
+	defer func() { OrFail(os.RemoveAll("temp"), t) }()
+	_, err = pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
+		return patch.Patches{patch.Replace(pf.File, "koko")}
+	})
+	OrFail(err, t)
+	dir("temp",
+		dir("ioutil", file("ioutil.go", "koko")),
+		file("io.go", "koko"),
+	).AssertContains("temp", t)
+}
+
 func TestGuessSubpkgGopath(t *testing.T) {
 	fs := dir(
 		"gopath/src/mypkg",
@@ -111,16 +127,16 @@ func TestGuessSubpkgGopath(t *testing.T) {
 	func() {
 		pkg, err := Import("", "mypkg/sub3/subsub3")
 		OrFail(err, t)
+		OrFail(os.Mkdir("temp", 0755), t)
+		defer func() { OrFail(os.RemoveAll("temp"), t) }()
 		_, err = pkg.Instrument("temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("mypkg",
-				dir("sub1", file("sub1.go", "koko")),
-				dir("sub3", dir("subsub3", file("subsub3.go", "koko"))),
-			),
-		) /*.AssertEqual("temp")*/
+			dir("sub1", file("sub1.go", "koko")),
+			dir("sub3", dir("subsub3", file("subsub3.go", "koko"))),
+		).AssertEqual("temp", t)
 	}()
 }
 
@@ -327,10 +343,16 @@ func (fs *Fs) List() (children []*Fs) {
 	return
 }
 
+func (fs *Fs) AssertContains(path string, t *testing.T) {
+	info, err := os.Stat(path)
+	OrFail(err, t)
+	fs.recursiveCheck(false, filepath.Dir(path), info, 2, t)
+}
+
 func (fs *Fs) AssertEqual(path string, t *testing.T) {
 	info, err := os.Stat(path)
 	OrFail(err, t)
-	fs.recursiveEqual(filepath.Dir(path), info, 2, t)
+	fs.recursiveCheck(true, filepath.Dir(path), info, 2, t)
 }
 
 func (fs *Fs) String() string {
@@ -353,7 +375,8 @@ func fileinfos(infos []os.FileInfo) string {
 }
 
 // Compare returns whether a certain *Fs node is equal to an existing file tree
-func (fs *Fs) recursiveEqual(path string, info os.FileInfo, depth int, t *testing.T) {
+// if compFolder is not set, it would not compare directories' content
+func (fs *Fs) recursiveCheck(compFolder bool, path string, info os.FileInfo, depth int, t *testing.T) {
 	path = filepath.Join(path, info.Name())
 	if fs.Name != info.Name() {
 		fatalCaller(t, depth, path, "expected", fs.Name)
@@ -364,14 +387,19 @@ func (fs *Fs) recursiveEqual(path string, info os.FileInfo, depth int, t *testin
 	if fs.IsDir() {
 		children, err := ioutil.ReadDir(path)
 		OrFail(err, t)
-		if len(children) != len(fs.Children) {
+		childrenMap := make(map[string]os.FileInfo)
+		for _, child := range children {
+			childrenMap[child.Name()] = child
+		}
+		if compFolder && len(children) != len(fs.Children) {
 			fatalCaller(t, depth, "expected", fs.List(), "got", fileinfos(children))
 		}
-		for i, child := range fs.List() {
-			if child.Name != children[i].Name() {
-				fatalCaller(t, depth, "expected", fs.List(), "got", fileinfos(children))
+		for _, fsChild := range fs.Children {
+			if child, ok := childrenMap[fsChild.Name]; ok {
+				fsChild.recursiveCheck(compFolder, path, child, depth+1, t)
+			} else {
+				fatalCaller(t, depth, "no", fsChild.Name, "in", fs.Name, "expected", fs.List(), "got", fileinfos(children))
 			}
-			child.recursiveEqual(path, children[i], depth+1, t)
 		}
 	} else {
 		content, err := ioutil.ReadFile(path)

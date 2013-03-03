@@ -4,6 +4,7 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elazarl/gosloppy/patch"
 )
@@ -26,7 +27,19 @@ func (i *Instrumentable) Files() (files []string) {
 }
 
 func guessBasepkg(importpath string) string {
-	panic("not implemented")
+	path, err := repoRootForImportPathStatic(importpath)
+	if err != nil {
+		p := filepath.Dir(importpath)
+		for strings.Contains(p, "/") {
+			parent := filepath.Dir(p)
+			if _, err := build.Import(parent, "", 0); err != nil {
+				return p
+			}
+			p = parent
+		}
+		return p
+	}
+	return path.root
 }
 
 // Import gives an Instrumentable for a given package name, it will instrument pkgname
