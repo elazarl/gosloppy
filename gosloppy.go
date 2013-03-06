@@ -206,6 +206,7 @@ func main() {
 	f := flag.NewFlagSet("", flag.ContinueOnError)
 	basedir := f.String("basedir", "", "instrument all packages decendant f basedir")
 	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
+	die(err)
 	var pkg *instrument.Instrumentable
 	if len(gocmd.Packages) == 0 {
 		pkg, err = instrument.ImportDir(*basedir, ".")
