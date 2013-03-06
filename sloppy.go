@@ -204,7 +204,15 @@ func die(err error) {
 
 func main() {
 	f := flag.NewFlagSet("", flag.ContinueOnError)
+	basedir := f.String("basedir", "", "instrument all packages decendant f basedir")
 	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
+	var pkg *instrument.Instrumentable
+	if len(gocmd.Packages) == 0 {
+		pkg, err = instrument.ImportDir(*basedir, ".")
+	} else {
+		pkg, err = instrument.Import(*basedir, gocmd.Packages[0])
+	}
+	fmt.Println(pkg)
 	if f.Lookup("x").Value.String() == "true" {
 		log.Println("Executing:", gocmd)
 	}
