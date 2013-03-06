@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"go/build"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -84,13 +85,17 @@ func NewGoCmdWithFlags(flags *flag.FlagSet, workdir string, args ...string) (*Go
 	return &GoCmd{workdir, args[0], args[1], FromFlagSet(flags), flags.Args()}, nil
 }
 
-func (cmd *GoCmd) String() string {
-	l := []string{cmd.Executable, cmd.Command}
+func (cmd *GoCmd) Args() []string {
+	l := []string{cmd.Command}
 	for k, v := range cmd.BuildFlags {
 		l = append(l, "-"+k+"="+v)
 	}
 	l = append(l, cmd.Packages...)
-	return strings.Join(l, " ")
+	return l
+}
+
+func (cmd *GoCmd) String() string {
+	return strings.Join(append([]string{cmd.Executable}, cmd.Args()...), " ")
 }
 
 // Retarget will return a new command line to compile the new target, but keep paths
@@ -137,4 +142,8 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 		return nil, errors.New("No support for commands other than build test or run")
 	}
 	return &GoCmd{cmd.WorkDir, cmd.Executable, cmd.Command, buildflags, cmd.Packages}, nil
+}
+
+func (cmd *GoCmd) Run() *exec.Cmd {
+	return exec.Command(cmd.Executable, cmd.Args()...)
 }
