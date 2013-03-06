@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/elazarl/gosloppy/patch"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -14,6 +13,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/elazarl/gosloppy/instrument"
+	"github.com/elazarl/gosloppy/patch"
 )
 
 func parseDir(path string, mode parser.Mode) (map[string]*patch.PatchableFile, error) {
@@ -193,20 +195,19 @@ build a binary:
 gosloppy build <go build switches>`)
 }
 
+func die(err error) {
+	if err != nil {
+		os.Stderr.WriteString(err.Error())
+		os.Exit(-1)
+	}
+}
+
 func main() {
-	args := args()
-	jumptable := map[string]func([]string) error{
-		"test":  gotest,
-		"build": gobuild,
+	f := flag.NewFlagSet("", flag.ContinueOnError)
+	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
+	if f.Lookup("x").Value.String() == "true" {
+		log.Println("Executing:", gocmd)
 	}
-	if len(args) == 0 {
-		usage()
-		return
-	}
-	if f, ok := jumptable[args[0]]; !ok {
-		usage()
-		log.Fatal("can't find action", args[0], jumptable[args[0]])
-	} else {
-		f(args[1:])
-	}
+	die(err)
+	die(gocmd.Runnable().Run())
 }

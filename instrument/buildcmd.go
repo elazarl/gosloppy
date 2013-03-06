@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"go/build"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -144,6 +145,10 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	return &GoCmd{cmd.WorkDir, cmd.Executable, cmd.Command, buildflags, cmd.Packages}, nil
 }
 
-func (cmd *GoCmd) Run() *exec.Cmd {
-	return exec.Command(cmd.Executable, cmd.Args()...)
+func (cmd *GoCmd) Runnable() *exec.Cmd {
+	r := exec.Command("go", cmd.Args()...)
+	r.Dir = cmd.WorkDir
+	r.Stdin = os.Stdin
+	r.Stdout = os.Stdout
+	return r
 }
