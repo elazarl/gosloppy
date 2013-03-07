@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/elazarl/gosloppy/instrument"
 	"github.com/elazarl/gosloppy/patch"
@@ -41,6 +42,10 @@ func die(err error) {
 	}
 }
 
+func mvToDir(srcdir, file, dstdir string) error {
+	return os.Rename(filepath.Join(srcdir, file), filepath.Join(dstdir, file))
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		usage()
@@ -69,4 +74,8 @@ func main() {
 		log.Println("Executing:", gocmd)
 	}
 	die(gocmd.Runnable().Run())
+	if gocmd.Command == "test" && gocmd.BuildFlags["c"] != "" {
+		// TODO(elazar): caution, we assume outdir is immediately below us
+		mvToDir(outdir, outdir+".test", ".")
+	}
 }

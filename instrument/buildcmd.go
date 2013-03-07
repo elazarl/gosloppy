@@ -143,6 +143,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 			v = defoutput
 		}
 		buildflags["o"] = filepath.Join(rel, v)
+	case "test":
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}

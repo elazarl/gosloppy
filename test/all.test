@@ -33,7 +33,7 @@ find . -maxdepth 1 -name test\* -type d|while read d; do
 		CMD="$GOSLOPPY build -o ensure_minus_o"
 		$CMD || die buidling $CMD
 		check ensure_minus_o || die $CMD
-		if [ -n "*_test.go" ]; then
+		if stat -t *_test.go &>/dev/null; then
 			$GOSLOPPY test || die $GOSLOPPY test
 		fi
 	fi
