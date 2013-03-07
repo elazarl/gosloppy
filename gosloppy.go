@@ -42,6 +42,10 @@ func die(err error) {
 }
 
 func main() {
+	if len(os.Args) == 1 {
+		usage()
+		return
+	}
 	f := flag.NewFlagSet("", flag.ContinueOnError)
 	basedir := f.String("basedir", "", "instrument all packages decendant f basedir")
 	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
