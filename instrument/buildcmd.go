@@ -123,9 +123,13 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	if pkg.Name == "main" {
 		if len(cmd.Packages) == 0 {
 			// hopefully a legal package will contain at list one file...
-			f := pkg.GoFiles[0]
-			ext := filepath.Ext(pkg.GoFiles[0])
-			defoutput = f[:len(f)-len(ext)]
+			// the docs says that we should take the name of the first file, reality however
+			// is different: http://code.google.com/p/go/issues/detail?id=5003
+			d, err := filepath.Abs(pkg.Dir)
+			if err != nil {
+				return nil, err
+			}
+			defoutput = filepath.Base(d)
 		} else {
 			// not in the docs, but trying to run `go build pkg` gives a `pkg` executable
 			defoutput = filepath.Base(cmd.Packages[0])
@@ -142,7 +146,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}
-	return &GoCmd{cmd.WorkDir, cmd.Executable, cmd.Command, buildflags, cmd.Packages}, nil
+	return &GoCmd{newdir, cmd.Executable, cmd.Command, buildflags, cmd.Packages}, nil
 }
 
 func (cmd *GoCmd) Runnable() *exec.Cmd {
