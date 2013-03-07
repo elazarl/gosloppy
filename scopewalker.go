@@ -92,6 +92,12 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		WalkExpr(v, stmt.X, scope)
+	case *ast.IncDecStmt:
+		WalkExpr(v, stmt.X, scope)
+	case *ast.ReturnStmt:
+		for _, expr := range stmt.Results {
+			WalkExpr(v, expr, scope)
+		}
 	case *ast.AssignStmt:
 		if stmt.Tok == token.DEFINE {
 			newscope = ast.NewScope(scope)
@@ -132,6 +138,14 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		default:
 			panic("only GenDecl can appear in statement")
 		}
+	case *ast.DeferStmt:
+		WalkExpr(v, stmt.Call, scope)
+	case *ast.GoStmt:
+		WalkExpr(v, stmt.Call, scope)
+	case *ast.LabeledStmt:
+		WalkStmt(v, stmt.Stmt, scope)
+	case *ast.BranchStmt:
+		// nothing to do
 	case *ast.IfStmt:
 		inner := scope
 		if stmt.Init != nil {
@@ -164,7 +178,9 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		} else if stmt.Tok == token.DEFINE {
 			inner = ast.NewScope(inner)
 			insertToScope(inner, stmt.Key.(*ast.Ident).Obj)
-			insertToScope(inner, stmt.Value.(*ast.Ident).Obj)
+			if stmt.Value != nil {
+				insertToScope(inner, stmt.Value.(*ast.Ident).Obj)
+			}
 		} else {
 			panic("range statement must have := or = token")
 		}

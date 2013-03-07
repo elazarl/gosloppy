@@ -10,6 +10,8 @@ function die {
 	echo FAILED $@
 	exit 1
 }
+echo 'Building project'
+(cd .. && go build -o gosloppy) || die Cannot build project
 export GOSLOPPY=$(cd ..;echo `pwd`/gosloppy)
 [ -f $GOSLOPPY ] || die gosloppy not built: $GOSLOPPY
 find . -maxdepth 1 -name test\* -type d|while read d; do
