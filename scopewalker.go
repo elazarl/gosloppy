@@ -138,6 +138,9 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		default:
 			panic("only GenDecl can appear in statement")
 		}
+	case *ast.SendStmt:
+		WalkExpr(v, stmt.Chan, scope)
+		WalkExpr(v, stmt.Value, scope)
 	case *ast.DeferStmt:
 		WalkExpr(v, stmt.Call, scope)
 	case *ast.GoStmt:
