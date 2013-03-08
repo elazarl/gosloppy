@@ -17,6 +17,9 @@ type patchUnused struct {
 }
 
 func (p *patchUnused) UnusedObj(obj *ast.Object) {
+	if _, ok := obj.Decl.(*ast.Field); ok {
+		return // if the unused variable is a function argument - ignore
+	}
 	if obj.Kind == ast.Fun {
 		return
 	}
