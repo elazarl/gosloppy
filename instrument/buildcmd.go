@@ -155,5 +155,6 @@ func (cmd *GoCmd) Runnable() *exec.Cmd {
 	r.Dir = cmd.WorkDir
 	r.Stdin = os.Stdin
 	r.Stdout = os.Stdout
+	r.Stderr = os.Stderr
 	return r
 }
