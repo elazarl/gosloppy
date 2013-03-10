@@ -49,6 +49,8 @@ func mvToDir(srcdir, file, dstdir string) error {
 	return os.Rename(filepath.Join(srcdir, file), filepath.Join(dstdir, file))
 }
 
+var TmpDirName = "__gosloppy__.tmp"
+
 func main() {
 	if len(os.Args) == 1 {
 		usage()
@@ -65,11 +67,18 @@ func main() {
 		pkg, err = instrument.Import(*basedir, gocmd.Packages[0])
 	}
 	die(err)
-	outdir, err := pkg.Instrument("__goproxy", func(p *patch.PatchableFile) patch.Patches {
+	outdir, err := pkg.Instrument(TmpDirName, func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
 		UnusedInFile(p.File, patches)
 		return patches.patches
 	})
+	defer func() {
+		if gocmd.BuildFlags["work"] != "true" {
+			if err := os.RemoveAll(TmpDirName); err != nil {
+				log.Println("Cannot remove temporary dir", TmpDirName, err)
+			}
+		}
+	}()
 	die(err)
 	gocmd, err = gocmd.Retarget(outdir)
 	die(err)
