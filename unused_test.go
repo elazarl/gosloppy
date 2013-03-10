@@ -95,4 +95,11 @@ var UnusedSimple = []struct {
 		`,
 		[]string{"i"},
 	},
+	{
+		`package main
+		import "fmt"
+		func f(_ fmt.Stringer)
+		`,
+		[]string{"f"},
+	},
 }

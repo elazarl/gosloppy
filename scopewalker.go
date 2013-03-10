@@ -12,15 +12,13 @@ type ScopeVisitor interface {
 	ExitScope(scope *ast.Scope) (w ScopeVisitor)
 }
 
-// Note, we're not traversing types, since what interest the users
-// of scope visitor is the actual code, they can get the type from
-// the scope.
-
-func insertFieldsToScope(fields []*ast.Field, scope *ast.Scope) {
+// We traverse types, since we need them to determine if import is used
+func WalkFields(v ScopeVisitor, fields []*ast.Field, scope *ast.Scope) {
 	for _, field := range fields {
 		for _, name := range field.Names {
 			insertToScope(scope, name.Obj)
 		}
+		WalkExpr(v, field.Type, scope)
 	}
 }
 
@@ -36,10 +34,10 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 	case *ast.FuncLit:
 		newscope := ast.NewScope(scope)
 		if expr.Type.Params != nil {
-			insertFieldsToScope(expr.Type.Params.List, newscope)
+			WalkFields(v, expr.Type.Params.List, newscope)
 		}
 		if expr.Type.Results != nil {
-			insertFieldsToScope(expr.Type.Results.List, newscope)
+			WalkFields(v, expr.Type.Results.List, newscope)
 		}
 		WalkStmt(v, expr.Body, newscope)
 		v.ExitScope(newscope)
@@ -255,11 +253,7 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 			if d.Recv != nil {
 				insertToScope(scope, d.Recv.List[0].Names[0].Obj)
 			}
-			for _, fields := range d.Type.Params.List {
-				for _, p := range fields.Names {
-					insertToScope(scope, p.Obj)
-				}
-			}
+			WalkFields(v, d.Type.Params.List, scope)
 			// see http://golang.org/ref/spec#Function_declarations
 			// "A function declaration may omit the body.
 			//  Such a declaration provides the signature for a function implemented outside Go,
