@@ -102,4 +102,11 @@ var UnusedSimple = []struct {
 		`,
 		[]string{"f"},
 	},
+	{
+		`package main
+		import "io/ioutil"
+		var _ = ioutil.Discard
+		`,
+		[]string{},
+	},
 }
