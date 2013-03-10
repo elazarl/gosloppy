@@ -260,7 +260,14 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 					insertToScope(scope, p.Obj)
 				}
 			}
-			WalkStmt(v, d.Body, scope)
+			// see http://golang.org/ref/spec#Function_declarations
+			// "A function declaration may omit the body.
+			//  Such a declaration provides the signature for a function implemented outside Go,
+			//  such as an assembly routine."
+			// for example sigpipe at os/file_posix.go
+			if d.Body != nil {
+				WalkStmt(v, d.Body, scope)
+			}
 			v.ExitScope(scope)
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
