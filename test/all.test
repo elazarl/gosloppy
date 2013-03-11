@@ -16,7 +16,7 @@ echo 'Building project'
 (cd .. && go build -o gosloppy) || die Cannot build project
 export GOSLOPPY=$(cd ..;echo `pwd`/gosloppy)
 [ -f $GOSLOPPY ] || die gosloppy not built: $GOSLOPPY
-find . -maxdepth 1 -name test\* -type d|while read d; do
+find . -maxdepth 1 -name test\* -type d| sort | while read d; do
 	echo Testing $d
 	(
 	cd $d
