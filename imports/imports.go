@@ -42,14 +42,15 @@ func getNameOrGuess(imp *ast.ImportSpec) string {
 # to generate run
 (cd $GOROOT/src/pkg; bash -c 'find * -type d' | grep -v testdata | \
 python -c 'import sys;import glob
-print "var DefaultImportCache = ImportCache{"
+print "var Stdlib = map[string]string{"
 for l in sys.stdin.read().split():
     if not glob.glob(l+"/*.go"): continue
     print """\t`"%s"`: "%s",""" % (l, l.split("/")[-1])
 print "}"')
 */
 // all stdlib precached
-var DefaultImportCache = ImportCache{
+var DefaultImportCache = ImportCache(Stdlib)
+var Stdlib = map[string]string{
 	`"archive/tar"`:         "tar",
 	`"archive/zip"`:         "zip",
 	`"bufio"`:               "bufio",
