@@ -60,7 +60,7 @@ func (v VerifyVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
-func (v VerifyVisitor) ExitScope(scope *ast.Scope) ScopeVisitor {
+func (v VerifyVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	return v
 }
 
@@ -121,7 +121,7 @@ func (t *BrothersTest) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return t
 }
 
-func (t *BrothersTest) ExitScope(scope *ast.Scope) ScopeVisitor {
+func (t *BrothersTest) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	return t
 }
 
@@ -196,7 +196,7 @@ func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisito
 	return v
 }
 
-func (v *VerifyExitScope) ExitScope(scope *ast.Scope) ScopeVisitor {
+func (v *VerifyExitScope) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	expected := v.pop()
 	if fmt.Sprint(expected) != fmt.Sprint(scopeNames(scope)) {
 		v.t.Error("Expected", append(v.v, expected), "got", scopeNames(scope), "test case", v.ix)

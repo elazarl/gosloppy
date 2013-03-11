@@ -15,27 +15,20 @@ func anonymousImport(name *ast.Ident) bool {
 }
 
 func UnusedInFile(file *ast.File, v Visitor) {
-	uv := newUnusedVisitor(v)
-	WalkFile(uv, file)
-	for _, imp := range file.Imports {
-		name := imports.GetNameOrGuess(imp)
-		if !uv.usedImports[name] && !anonymousImport(imp.Name) {
-			v.UnusedImport(imp)
-		}
-	}
+	WalkFile(NewUnusedVisitor(v), file)
 }
 
-func newUnusedVisitor(v Visitor) *unusedVisitor {
-	return &unusedVisitor{make(map[*ast.Object]bool), make(map[string]bool), v}
+func NewUnusedVisitor(v Visitor) *UnusedVisitor {
+	return &UnusedVisitor{make(map[*ast.Object]bool), make(map[string]bool), v}
 }
 
-type unusedVisitor struct {
-	used        map[*ast.Object]bool
-	usedImports map[string]bool
-	visitor     Visitor
+type UnusedVisitor struct {
+	Used        map[*ast.Object]bool
+	UsedImports map[string]bool
+	Visitor     Visitor
 }
 
-func (v *unusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor {
+func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor {
 	return v
 }
 
@@ -49,13 +42,13 @@ func lookup(scope *ast.Scope, name string) *ast.Object {
 	return nil
 }
 
-func (v *unusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
 		if def := lookup(scope, expr.Name); def != nil {
-			v.used[def] = true
+			v.Used[def] = true
 		} else {
-			v.usedImports[expr.Name] = true
+			v.UsedImports[expr.Name] = true
 		}
 	case *ast.SelectorExpr:
 		v.VisitExpr(scope, expr.X)
@@ -64,10 +57,18 @@ func (v *unusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor 
 	return v
 }
 
-func (v *unusedVisitor) ExitScope(scope *ast.Scope) ScopeVisitor {
+func (v *UnusedVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	for _, obj := range scope.Objects {
-		if !v.used[obj] {
-			v.visitor.UnusedObj(obj)
+		if !v.Used[obj] {
+			v.Visitor.UnusedObj(obj)
+		}
+	}
+	if file, ok := node.(*ast.File); ok {
+		for _, imp := range file.Imports {
+			name := imports.GetNameOrGuess(imp)
+			if !v.UsedImports[name] && !anonymousImport(imp.Name) {
+				v.Visitor.UnusedImport(imp)
+			}
 		}
 	}
 	return v

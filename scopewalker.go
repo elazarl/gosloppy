@@ -9,7 +9,8 @@ import (
 type ScopeVisitor interface {
 	VisitExpr(scope *ast.Scope, expr ast.Expr) (w ScopeVisitor)
 	VisitStmt(scope *ast.Scope, stmt ast.Stmt) (w ScopeVisitor)
-	ExitScope(scope *ast.Scope) (w ScopeVisitor)
+	// TODO(elazar): rethink the API, we probably want to give here a list of scopes
+	ExitScope(scope *ast.Scope, parent ast.Node, last bool) (w ScopeVisitor)
 }
 
 // We traverse types, since we need them to determine if import is used
@@ -40,7 +41,7 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 			WalkFields(v, expr.Type.Results.List, newscope)
 		}
 		WalkStmt(v, expr.Body, newscope)
-		v.ExitScope(newscope)
+		v.ExitScope(newscope, expr, true)
 	case *ast.BadExpr:
 		// nothing to do
 	case *ast.ParenExpr:
@@ -157,7 +158,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		if stmt.Else != nil {
 			WalkStmt(v, stmt.Else, inner)
 		}
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.ForStmt:
 		inner := scope
 		if stmt.Init != nil {
@@ -170,7 +171,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			WalkStmt(v, stmt.Post, scope)
 		}
 		WalkStmt(v, stmt.Body, scope)
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.RangeStmt:
 		inner := scope
 		if stmt.Tok == token.ASSIGN {
@@ -186,7 +187,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			panic("range statement must have := or = token")
 		}
 		WalkStmt(v, stmt.Body, scope)
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.CaseClause:
 		inner := ast.NewScope(scope)
 		for _, expr := range stmt.List {
@@ -195,7 +196,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		for _, s := range stmt.Body {
 			inner = WalkStmt(v, s, inner)
 		}
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.SwitchStmt:
 		inner := scope
 		if stmt.Init != nil {
@@ -203,7 +204,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		WalkExpr(v, stmt.Tag, scope)
 		WalkStmt(v, stmt.Body, inner)
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.TypeSwitchStmt:
 		inner := scope
 		if stmt.Init != nil {
@@ -211,13 +212,13 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		inner = WalkStmt(v, stmt.Assign, inner)
 		WalkStmt(v, stmt.Body, inner)
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.CommClause:
 		inner := WalkStmt(v, stmt.Comm, scope)
 		for _, s := range stmt.Body {
 			inner = WalkStmt(v, s, inner)
 		}
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	case *ast.SelectStmt:
 		WalkStmt(v, stmt.Body, scope)
 	case *ast.BlockStmt:
@@ -225,19 +226,19 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		for _, s := range stmt.List {
 			inner = WalkStmt(v, s, inner)
 		}
-		exitScopes(v, inner, scope)
+		exitScopes(v, inner, scope, stmt)
 	default:
 		log.Fatalf("Cannot understand %+#v", stmt)
 	}
 	return
 }
 
-func exitScopes(v ScopeVisitor, inner, limit *ast.Scope) {
+func exitScopes(v ScopeVisitor, inner, limit *ast.Scope, parent ast.Stmt) {
 	for inner != limit {
 		if inner == nil {
 			panic("exitScopes must be bounded")
 		}
-		v.ExitScope(inner)
+		v.ExitScope(inner, parent, inner.Outer == limit)
 		inner = inner.Outer
 	}
 }
@@ -262,7 +263,7 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 			if d.Body != nil {
 				WalkStmt(v, d.Body, scope)
 			}
-			v.ExitScope(scope)
+			v.ExitScope(scope, d, true)
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch spec := spec.(type) {
@@ -275,7 +276,7 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 			}
 		}
 	}
-	v.ExitScope(file.Scope)
+	v.ExitScope(file.Scope, file, true)
 }
 
 func insertToScope(scope *ast.Scope, obj *ast.Object) {
