@@ -1,17 +1,16 @@
 package imports
 
 import (
-	"go/build"
+	"go/ast"
 	"testing"
 )
 
-// TODO(elazar): write a real cache, then write a real test...
+// TODO(elazar): test subpackages fetching and cache
 func TestGetPackageName(t *testing.T) {
-	pkg, err := build.Import("fmt", ".", build.AllowBinary)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pkg.Name != "fmt" {
-		t.Error("Expected fmt got", pkg.Name)
+	for pkg, name := range DefaultImportCache {
+		actual := getNameOrGuess(&ast.ImportSpec{Path: &ast.BasicLit{Value: pkg}})
+		if actual != name {
+			t.Fatalf("standard package %s name evaluated %s != %s", pkg, actual, name)
+		}
 	}
 }

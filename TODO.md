@@ -1,6 +1,6 @@
 # TODO
 
-## `$GOPATH` and subpackages
+## `$GOPATH` and subpackages - DONE
 
   1. Make sure subpackages works right.
     a. Is an import path corresponds to you - BAM you found the base path.
@@ -10,9 +10,9 @@
 
 ## Performance
 
-Package cache - a must before release.
+Package cache - a must before release. - DONE
 
-Should a package cache persist itself? Probably not worth it.
+Should a package cache persist itself? Probably not worth it. - WONTFIX
 
 Permanent cache of standard packages.
 
