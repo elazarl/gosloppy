@@ -2,6 +2,7 @@ package instrument
 
 import (
 	"go/build"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,14 +98,24 @@ func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
 	return Import(i.basepkg, pkg)
 }
 
-func (i *Instrumentable) Instrument(outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+var tempStem = "__instrument.go"
+
+func (i *Instrumentable) Instrument(f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+	d, err := ioutil.TempDir(".", tempStem)
+	if err != nil {
+		return "", err
+	}
+	return i.InstrumentTo(d, f)
+}
+
+func (i *Instrumentable) InstrumentTo(outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
 	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
 		for _, imp := range imps {
 			if i.relevantImport(imp) {
 				if imp, err := i.doimport(imp); err != nil {
 					return "", err
 				} else {
-					imp.Instrument(outdir, f)
+					imp.InstrumentTo(outdir, f)
 				}
 			}
 		}
@@ -121,12 +132,21 @@ func (i *Instrumentable) Instrument(outdir string, f func(file *patch.PatchableF
 	if err := os.MkdirAll(finaldir, 0755); err != nil {
 		return "", err
 	}
-	Instrument(finaldir, i.Files(), f)
+	InstrumentTo(finaldir, i.Files(), f)
 	return finaldir, nil
 }
 
 // Instrument parses all gofiles, invoke f on any file, and then writes it with the same name to outdir
-func Instrument(outdir string, gofiles []string, f func(file *patch.PatchableFile) patch.Patches) error {
+func Instrument(gofiles []string, f func(file *patch.PatchableFile) patch.Patches) error {
+	d, err := ioutil.TempDir(".", tempStem)
+	if err != nil {
+		return err
+	}
+	return InstrumentTo(d, gofiles, f)
+}
+
+// Instrument parses all gofiles, invoke f on any file, and then writes it with the same name to outdir
+func InstrumentTo(outdir string, gofiles []string, f func(file *patch.PatchableFile) patch.Patches) error {
 	if err := os.MkdirAll(outdir, 0755); err != nil {
 		return err
 	}
