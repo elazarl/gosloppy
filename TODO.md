@@ -1,5 +1,9 @@
 # TODO
 
+## Infra
+
+  1. Replace the blasphemy ./test/all.test is, with a python/go script
+
 ## `$GOPATH` and subpackages - DONE
 
   1. Make sure subpackages works right.
@@ -14,7 +18,7 @@ Package cache - a must before release. - DONE
 
 Should a package cache persist itself? Probably not worth it. - WONTFIX
 
-Permanent cache of standard packages.
+Permanent cache of standard packages. - DONE
 
 Some light performance tests. If you can see by hand it's working reasonably fast, maybe we can skip them.
 
