@@ -69,7 +69,7 @@ func main() {
 	die(err)
 	outdir, err := pkg.Instrument(TmpDirName, func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
-		UnusedInFile(p.File, patches)
+		WalkFile(NewUnusedVisitor(patches), p.File)
 		return patches.patches
 	})
 	defer func() {

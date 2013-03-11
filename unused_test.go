@@ -23,9 +23,9 @@ func TestSimpleUnused(t *testing.T) {
 	for i, c := range UnusedSimple {
 		file, _ := parse(c.body, t)
 		unused := []string{}
-		UnusedInFile(file, unusedNames(func(name string) {
+		WalkFile(NewUnusedVisitor(unusedNames(func(name string) {
 			unused = append(unused, name)
-		}))
+		})), file)
 		if fmt.Sprint(unused) != fmt.Sprint(c.expUnused) {
 			t.Errorf("Case #%d:\n%s\n Expected unused %v got %v", i, c.body, c.expUnused, unused)
 		}

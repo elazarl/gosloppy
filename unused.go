@@ -14,10 +14,6 @@ func anonymousImport(name *ast.Ident) bool {
 	return name != nil && (name.Name == "_" || name.Name == ".")
 }
 
-func UnusedInFile(file *ast.File, v Visitor) {
-	WalkFile(NewUnusedVisitor(v), file)
-}
-
 func NewUnusedVisitor(v Visitor) *UnusedVisitor {
 	return &UnusedVisitor{make(map[*ast.Object]bool), make(map[string]bool), v}
 }
