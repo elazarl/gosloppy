@@ -27,6 +27,7 @@ func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	case *ast.Ident:
 		if importname, ok := imports.RevStdlib[expr.Name]; ok && len(importname) == 1 &&
 			!v.m[expr.Name] && Lookup(scope, expr.Name) == nil {
+			v.m[expr.Name] = true // don't add it again
 			v.Patches = append(v.Patches, patch.Insert(v.pkg, "; import "+importname[0]))
 		}
 	case *ast.SelectorExpr:
