@@ -38,10 +38,12 @@ build a binary:
 gosloppy build <go build switches>`)
 }
 
+type exitCode int
+
 func die(err error) {
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
-		os.Exit(-1)
+		panic(exitCode(-1))
 	}
 }
 
@@ -54,6 +56,13 @@ func main() {
 		usage()
 		return
 	}
+	defer func() {
+		if p := recover(); p != nil {
+			if p, ok := p.(exitCode); ok {
+				os.Exit(int(p))
+			}
+		}
+	}()
 	f := flag.NewFlagSet("", flag.ContinueOnError)
 	basedir := f.String("basedir", "", "instrument all packages decendant f basedir")
 	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
