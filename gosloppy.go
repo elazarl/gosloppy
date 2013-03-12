@@ -49,20 +49,6 @@ func mvToDir(srcdir, file, dstdir string) error {
 	return os.Rename(filepath.Join(srcdir, file), filepath.Join(dstdir, file))
 }
 
-type AutoImporter []*ast.ImportSpec
-
-func (v AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
-	return v
-}
-
-func (v AutoImporter) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
-	return v
-}
-
-func (v AutoImporter) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
-	return v
-}
-
 func main() {
 	if len(os.Args) == 1 {
 		usage()
@@ -81,7 +67,7 @@ func main() {
 	die(err)
 	outdir, err := pkg.Instrument(func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
-		WalkFile(MultiVisitor{NewUnusedVisitor(patches)}, p.File)
+		WalkFile(MultiVisitor{NewUnusedVisitor(patches), NewAutoImporter(p.File)}, p.File)
 		return patches.patches
 	})
 	defer func() {

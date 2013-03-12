@@ -109,4 +109,12 @@ var UnusedSimple = []struct {
 		`,
 		[]string{},
 	},
+	{
+		`package main
+		import "io/ioutil"
+		type T struct {ioutil string}
+		var _ = T{}.ioutil
+		`,
+		[]string{"T", `"io/ioutil"`},
+	},
 }

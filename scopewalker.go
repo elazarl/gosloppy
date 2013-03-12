@@ -288,3 +288,13 @@ func insertToScope(scope *ast.Scope, obj *ast.Object) {
 	}
 	scope.Insert(obj)
 }
+
+func Lookup(scope *ast.Scope, name string) *ast.Object {
+	for scope != nil {
+		if obj := scope.Lookup(name); obj != nil {
+			return obj
+		}
+		scope = scope.Outer
+	}
+	return nil
+}

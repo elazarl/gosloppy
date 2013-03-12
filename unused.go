@@ -28,20 +28,10 @@ func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor {
 	return v
 }
 
-func lookup(scope *ast.Scope, name string) *ast.Object {
-	for scope != nil {
-		if obj := scope.Lookup(name); obj != nil {
-			return obj
-		}
-		scope = scope.Outer
-	}
-	return nil
-}
-
 func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
-		if def := lookup(scope, expr.Name); def != nil {
+		if def := Lookup(scope, expr.Name); def != nil {
 			v.Used[def] = true
 		} else {
 			v.UsedImports[expr.Name] = true
