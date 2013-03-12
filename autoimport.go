@@ -9,7 +9,7 @@ import (
 )
 
 func NewAutoImporter(file *ast.File) *AutoImporter {
-	auto := &AutoImporter{patch.Patches{}, make(map[string]bool), file.Package}
+	auto := &AutoImporter{patch.Patches{}, make(map[string]bool), file.Name.End()}
 	for _, imp := range file.Imports {
 		auto.m[imports.GetNameOrGuess(imp)] = true
 	}
@@ -41,8 +41,5 @@ func (v *AutoImporter) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 }
 
 func (v *AutoImporter) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
-	if _, ok := node.(*ast.File); ok {
-		v.Patches = append(v.Patches, patch.Insert(v.pkg, ")"))
-	}
 	return v
 }

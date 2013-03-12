@@ -76,8 +76,9 @@ func main() {
 	die(err)
 	outdir, err := pkg.Instrument(func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
-		WalkFile(MultiVisitor{NewUnusedVisitor(patches), NewAutoImporter(p.File)}, p.File)
-		return patches.patches
+		autoimport := NewAutoImporter(p.File)
+		WalkFile(MultiVisitor{NewUnusedVisitor(patches), autoimport}, p.File)
+		return append(patches.patches, autoimport.Patches...)
 	})
 	defer func() {
 		if gocmd.BuildFlags["work"] != "true" {
