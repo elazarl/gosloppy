@@ -24,7 +24,15 @@ Some light performance tests. If you can see by hand it's working reasonably fas
 
 ## Usability
 
-Auto import of packages from the standard library. Must before release.
+!! SEVERE BUG, I do not take into account the package namespace
+
+    $ cat a.go
+    package foo
+    var io = struct{koko string}
+    $ cat b.go
+    var x = io.koko // will trigger import of io
+
+Auto import of packages from the standard library. Must before release. - DONE
 
 Easy way to panic on error. Must before release. e.g.
 

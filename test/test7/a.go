@@ -10,5 +10,5 @@ func f(io struct {
 		Close() error
 	}
 },) {
-	fmt.Println(io.Closer)
+	fmt.Println(io.Closer, os.foo)
 }
