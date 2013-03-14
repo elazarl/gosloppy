@@ -19,6 +19,8 @@ func (f unusedNames) UnusedImport(imp *ast.ImportSpec) {
 	f(imp.Path.Value)
 }
 
+// TODO(elazar): more complex tests:
+//   1. What should happen when I `import . "foo"`, and use `var foo` from other package?
 func TestSimpleUnused(t *testing.T) {
 	for i, c := range UnusedSimple {
 		file, _ := parse(c.body, t)

@@ -10,10 +10,11 @@ import (
 )
 
 type PatchableFile struct {
-	Name string
-	File *ast.File
-	Fset *token.FileSet
-	Orig string
+	PkgName  string
+	FileName string
+	File     *ast.File
+	Fset     *token.FileSet
+	Orig     string
 }
 
 type Patch struct {
@@ -40,7 +41,7 @@ func ParsePatchable(name string) (*PatchableFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PatchableFile{name, file, fset, string(buf)}, nil
+	return &PatchableFile{file.Name.Name, name, file, fset, string(buf)}, nil
 }
 
 func (p *PatchableFile) Fprint(w io.Writer, nd ast.Node) (int, error) {

@@ -25,7 +25,7 @@ f   ( ) {
         }`
 	buf := new(bytes.Buffer)
 	file, fset := parse(body, t)
-	patchable := &PatchableFile{"", file, fset, body}
+	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
 	patchable.Fprint(buf, file)
 	if buf.String() != body {
 		t.Errorf("Orig ===:\n%s\nCopy ===:\n%s\n PatchableFile differ from orig", body, buf.String())
@@ -50,7 +50,7 @@ f   ( ) {
         }`
 	buf := new(bytes.Buffer)
 	file, fset := parse(body, t)
-	patchable := &PatchableFile{"", file, fset, body}
+	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
 	patchable.FprintPatched(buf, file, Patches{Insert(file.Decls[0].Pos(), "/* before */")})
 	exp :=
 		`package main
