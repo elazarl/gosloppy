@@ -2,6 +2,7 @@ package patch
 
 import (
 	"go/ast"
+	"go/build"
 )
 
 type PatchablePkg struct {
@@ -10,6 +11,37 @@ type PatchablePkg struct {
 	Files map[string]*PatchableFile
 	// Imports not used, since I don't want to parse all imports
 	// Imports map[string]PatchablePkg
+}
+
+// TODO(elazar): this is very basic, and requires more work for edge cases and builds with C
+// Warning, file ASTs are SHARED between test and pkg. This might be desired, need to think over.
+func ParsePackage(buildpkg *build.Package) (pkg *PatchablePkg, testpkg *PatchablePkg, err error) {
+	pkg = NewPatchablePkg()
+	testpkg = NewPatchablePkg()
+	if err := pkg.ParseFiles(buildpkg.GoFiles...); err != nil {
+		return nil, nil, err
+	}
+	if err := pkg.ParseFiles(buildpkg.CgoFiles...); err != nil {
+		return nil, nil, err
+	}
+	for k, v := range pkg.Files {
+		testpkg.Files[k] = v
+	}
+	for _, obj := range pkg.Scope.Objects {
+		testpkg.Scope.Insert(obj)
+	}
+	if err := testpkg.ParseFiles(buildpkg.TestGoFiles...); err != nil {
+		return nil, nil, err
+	}
+	return pkg, testpkg, nil
+}
+
+func ParseFiles(files ...string) (*PatchablePkg, error) {
+	pkg := NewPatchablePkg()
+	if err := pkg.ParseFiles(files...); err != nil {
+		return nil, err
+	}
+	return pkg, nil
 }
 
 func NewPatchablePkg() *PatchablePkg {
