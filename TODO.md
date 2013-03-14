@@ -26,9 +26,9 @@
 
 [ ] support gosloppy run file1.go file2.go
 
-[ ] support 
+[ ] Move dir("d", file("name", "content")) into its own package.
 
-[V] !! SEVERE BUG, I do not take into account the package namespace
+[V] Take into account package namespace.
 
     $ cat a.go
     package foo
