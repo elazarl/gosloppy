@@ -150,11 +150,11 @@ func InstrumentTo(outdir string, gofiles []string, f func(file *patch.PatchableF
 	if err := os.MkdirAll(outdir, 0755); err != nil {
 		return err
 	}
-	for _, filename := range gofiles {
-		file, err := patch.ParsePatchable(filename)
-		if err != nil {
-			return err
-		}
+	pkg := patch.NewPatchablePkg()
+	if err := pkg.ParseFiles(gofiles...); err != nil {
+		return err
+	}
+	for filename, file := range pkg.Files {
 		if outfile, err := os.Create(filepath.Join(outdir, filepath.Base(filename))); err != nil {
 			return err
 		} else {

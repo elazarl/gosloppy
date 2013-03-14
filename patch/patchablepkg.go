@@ -45,5 +45,6 @@ func (pkg *PatchablePkg) ParseFile(file string) error {
 	for _, obj := range patchable.File.Scope.Objects {
 		pkg.Scope.Insert(obj)
 	}
+	patchable.File.Scope.Outer = pkg.Scope
 	return nil
 }
