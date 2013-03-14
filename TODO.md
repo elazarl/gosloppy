@@ -2,29 +2,33 @@
 
 ## Infra
 
-  1. Replace the blasphemy ./test/all.test is, with a python/go script
+[ ] Replace the blasphemy ./test/all.test is, with a python/go script
 
-## `$GOPATH` and subpackages - DONE
+## `$GOPATH` and subpackages
 
-  1. Make sure subpackages works right.
-    a. Is an import path corresponds to you - BAM you found the base path.
-    b. If not, does an import path import a package name with identical name to a subpackage?
-       i. Issue a warning if it's compilable (ie package exists).
-       ii. treat as a base path if it isn't.
+[V] Make sure subpackages works right. PARTLY DONE
+    a. If you know your import path - instrument packages below you, or directly above you
+       (if you're "github.com/foo/bar", then if strings.HasPrefix(x, "github.com/foo/bar"), or
+       or strings.HasPrefix("github.com/foo/bar", x), package will be instrumented.
+    b. If not, compile only relative subpackages. strings.HasPrefix(x, "./")
 
 ## Performance
 
-Package cache - a must before release. - DONE
+[V] Package cache - a must before release.
 
-Should a package cache persist itself? Probably not worth it. - WONTFIX
+[-] Should a package cache persist itself? Probably not worth it. - WONTFIX
 
-Permanent cache of standard packages. - DONE
+[V] Permanent cache of standard packages.
 
-Some light performance tests. If you can see by hand it's working reasonably fast, maybe we can skip them.
+[ ] Some light performance tests. If you can see by hand it's working reasonably fast, maybe we can skip them.
 
 ## Usability
 
-!! SEVERE BUG, I do not take into account the package namespace
+[ ] support gosloppy run file1.go file2.go
+
+[ ] support 
+
+[V] !! SEVERE BUG, I do not take into account the package namespace
 
     $ cat a.go
     package foo
@@ -32,9 +36,9 @@ Some light performance tests. If you can see by hand it's working reasonably fas
     $ cat b.go
     var x = io.koko // will trigger import of io
 
-Auto import of packages from the standard library. Must before release. - DONE
+[V] Auto import of packages from the standard library. Must before release.
 
-Easy way to panic on error. Must before release. e.g.
+[ ] Easy way to panic on error. Must before release. e.g.
 
     result, panic := f()
     // equiv:
@@ -46,7 +50,7 @@ Easy way to panic on error. Must before release. e.g.
     __temp := os.Getwd()
     if __temp := err { log.Println("filename:linenumber", err)
 
-Should we support script mode?
+[ ] Should we support script mode?
 
     #!/bin/bash -c '$GOPATH/bin/gosloppy'
     fmt.Println("hello world")
