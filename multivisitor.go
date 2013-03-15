@@ -5,56 +5,56 @@ import (
 )
 
 type MultiVisitor struct {
-	cow
+	*cow
 }
 
-func NewMultiVisitor(v ...ScopeVisitor) *MultiVisitor {
-	return &MultiVisitor{*newCow(v...)}
+func NewMultiVisitor(v ...ScopeVisitor) MultiVisitor {
+	return MultiVisitor{newCow(v...)}
 }
 
-func (v *MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
-	nrnil := 0
-	for _, w := range v.ar {
-		if w.VisitExpr(scope, expr) == nil {
-			nrnil++
+func (v MultiVisitor) AllNil() bool {
+	for _, elt := range v.ar {
+		if elt != nil {
+			return false
 		}
 	}
-	if nrnil != len(v.ar) && nrnil != 0 {
-		panic("all visitors must decide together whether or not to descend")
+	return true
+}
+
+func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+	for i, w := range v.ar {
+		if w == nil {
+			continue
+		}
+		v = MultiVisitor{v.Set(i, w.VisitExpr(scope, expr))}
 	}
-	if nrnil > 0 {
+	if v.AllNil() {
 		return nil
 	}
 	return v
 }
 
-func (v *MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
-	nrnil := 0
-	for _, w := range v.ar {
-		if w.VisitStmt(scope, stmt) == nil {
-			nrnil++
+func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+	for i, w := range v.ar {
+		if w == nil {
+			continue
 		}
+		v = MultiVisitor{v.Set(i, w.VisitStmt(scope, stmt))}
 	}
-	if nrnil != len(v.ar) && nrnil != 0 {
-		panic("all visitors must decide together whether or not to descend")
-	}
-	if nrnil > 0 {
+	if v.AllNil() {
 		return nil
 	}
 	return v
 }
 
-func (v *MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
-	nrnil := 0
-	for _, w := range v.ar {
-		if w.ExitScope(scope, node, last) == nil {
-			nrnil++
+func (v MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+	for i, w := range v.ar {
+		if w == nil {
+			continue
 		}
+		v = MultiVisitor{v.Set(i, w.ExitScope(scope, node, last))}
 	}
-	if nrnil != len(v.ar) && nrnil != 0 {
-		panic("all visitors must decide together whether or not to descend")
-	}
-	if nrnil > 0 {
+	if v.AllNil() {
 		return nil
 	}
 	return v
