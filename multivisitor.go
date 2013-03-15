@@ -4,11 +4,6 @@ import (
 	"go/ast"
 )
 
-type aggr struct {
-	v       ScopeVisitor
-	visited bool
-}
-
 type MultiVisitor []ScopeVisitor
 
 func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
