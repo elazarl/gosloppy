@@ -4,16 +4,22 @@ import (
 	"go/ast"
 )
 
-type MultiVisitor []ScopeVisitor
+type MultiVisitor struct {
+	cow
+}
 
-func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func NewMultiVisitor(v ...ScopeVisitor) *MultiVisitor {
+	return &MultiVisitor{*newCow(v...)}
+}
+
+func (v *MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	nrnil := 0
-	for _, w := range v {
+	for _, w := range v.ar {
 		if w.VisitExpr(scope, expr) == nil {
 			nrnil++
 		}
 	}
-	if nrnil != len(v) && nrnil != 0 {
+	if nrnil != len(v.ar) && nrnil != 0 {
 		panic("all visitors must decide together whether or not to descend")
 	}
 	if nrnil > 0 {
@@ -22,14 +28,14 @@ func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
-func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+func (v *MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	nrnil := 0
-	for _, w := range v {
+	for _, w := range v.ar {
 		if w.VisitStmt(scope, stmt) == nil {
 			nrnil++
 		}
 	}
-	if nrnil != len(v) && nrnil != 0 {
+	if nrnil != len(v.ar) && nrnil != 0 {
 		panic("all visitors must decide together whether or not to descend")
 	}
 	if nrnil > 0 {
@@ -38,14 +44,14 @@ func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return v
 }
 
-func (v MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (v *MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	nrnil := 0
-	for _, w := range v {
+	for _, w := range v.ar {
 		if w.ExitScope(scope, node, last) == nil {
 			nrnil++
 		}
 	}
-	if nrnil != len(v) && nrnil != 0 {
+	if nrnil != len(v.ar) && nrnil != 0 {
 		panic("all visitors must decide together whether or not to descend")
 	}
 	if nrnil > 0 {

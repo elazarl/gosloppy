@@ -77,7 +77,7 @@ func main() {
 	outdir, err := pkg.Instrument(func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
 		autoimport := NewAutoImporter(p.File)
-		WalkFile(MultiVisitor{NewUnusedVisitor(patches), autoimport}, p.File)
+		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport), p.File)
 		return append(patches.patches, autoimport.Patches...)
 	})
 	defer func() {
