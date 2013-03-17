@@ -44,6 +44,11 @@ func ParsePatchable(name string) (*PatchableFile, error) {
 	return &PatchableFile{file.Name.Name, name, file, fset, string(buf)}, nil
 }
 
+func (p *PatchableFile) Slice(from, to token.Pos) string {
+	start, end := p.Fset.Position(from), p.Fset.Position(to)
+	return p.Orig[start.Offset:end.Offset]
+}
+
 func (p *PatchableFile) Fprint(w io.Writer, nd ast.Node) (int, error) {
 	start, end := p.Fset.Position(nd.Pos()), p.Fset.Position(nd.End())
 	return io.WriteString(w, p.Orig[start.Offset:end.Offset])
