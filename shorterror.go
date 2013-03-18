@@ -37,7 +37,7 @@ func (v *ShortError) tempVar(stem string, scope *ast.Scope) string {
 
 var MustKeyword = "must"
 
-func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node) ScopeVisitor {
 	if expr, ok := expr.(*ast.CallExpr); ok {
 		if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
 			mustexpr := v.file.Slice(expr.Lparen+1, expr.Rparen)
@@ -51,7 +51,7 @@ func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
-func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt, parent ast.Node) ScopeVisitor {
 	v.stmt = stmt
 	switch stmt := stmt.(type) {
 	case *ast.BlockStmt:
@@ -71,7 +71,7 @@ func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 							"{ panic("+tmpVar+") };"),
 				)
 				for _, arg := range rhs.Args {
-					v.VisitExpr(scope, arg)
+					v.VisitExpr(scope, arg, parent)
 				}
 				return nil
 			}

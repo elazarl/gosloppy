@@ -50,12 +50,12 @@ func (v VerifyVisitor) verify(n ast.Node) {
 	}
 }
 
-func (v VerifyVisitor) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {
+func (v VerifyVisitor) VisitStmt(scope *ast.Scope, expr ast.Stmt, parent ast.Node) ScopeVisitor {
 	v.verify(expr)
 	return v
 }
 
-func (v VerifyVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v VerifyVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node) ScopeVisitor {
 	v.verify(expr)
 	return v
 }
@@ -105,7 +105,7 @@ func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
 
 type BrothersTest testing.T
 
-func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node) ScopeVisitor {
 	prefix := "inscope_"
 	if ident, ok := expr.(*ast.Ident); ok && strings.HasPrefix(ident.Name, prefix) {
 		brothers := strings.Split(ident.Name[len(prefix):], "_")
@@ -117,11 +117,11 @@ func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return t
 }
 
-func (t *BrothersTest) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+func (t *BrothersTest) VisitStmt(*ast.Scope, ast.Stmt, ast.Node) ScopeVisitor {
 	return t
 }
 
-func (t *BrothersTest) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (t *BrothersTest) ExitScope(*ast.Scope, ast.Node, bool) ScopeVisitor {
 	return t
 }
 
@@ -188,11 +188,11 @@ func scopeNames(scope *ast.Scope) (names []string) {
 	return
 }
 
-func (v *VerifyExitScope) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {
+func (v *VerifyExitScope) VisitStmt(*ast.Scope, ast.Stmt, ast.Node) ScopeVisitor {
 	return v
 }
 
-func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v *VerifyExitScope) VisitExpr(*ast.Scope, ast.Expr, ast.Node) ScopeVisitor {
 	return v
 }
 
