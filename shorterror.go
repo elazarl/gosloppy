@@ -35,13 +35,15 @@ func (v *ShortError) tempVar(stem string, scope *ast.Scope) string {
 	panic(">100,000 temporary variables used. Either the code is crazy, or I am.")
 }
 
+var MustKeyword = "must"
+
 func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	if expr, ok := expr.(*ast.CallExpr); ok {
-		if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == "must" {
+		if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
 			mustexpr := v.file.Slice(expr.Lparen+1, expr.Rparen)
 			tmpVar, tmpErr := v.tempVar("tmp_", scope), v.tempVar("err_", scope)
 			*v.patches = append(*v.patches, patch.Insert(v.stmt.Pos(),
-				fmt.Sprint(tmpVar, ", ", tmpErr, " := ", mustexpr, "; ",
+				fmt.Sprint("var ", tmpVar, ", ", tmpErr, " = ", mustexpr, "; ",
 					"if ", tmpErr, " != nil {panic(", tmpErr, ")};")))
 			*v.patches = append(*v.patches, patch.Replace(expr, tmpVar))
 		}
@@ -51,8 +53,29 @@ func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 
 func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	v.stmt = stmt
-	if stmt, ok := stmt.(*ast.BlockStmt); ok {
+	switch stmt := stmt.(type) {
+	case *ast.BlockStmt:
 		return &ShortError{v.file, v.patches, v.stmt, stmt, 0}
+	case *ast.AssignStmt:
+		if len(stmt.Rhs) != 1 {
+			return v
+		}
+		if rhs, ok := stmt.Rhs[0].(*ast.CallExpr); ok {
+			if fun, ok := rhs.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
+				tmpVar := v.tempVar("assignerr_", scope)
+				*v.patches = append(*v.patches,
+					patch.Insert(stmt.TokPos, ", "+tmpVar+" "),
+					patch.Replace(fun, ""),
+					patch.Insert(stmt.End(),
+						"; if "+tmpVar+" != nil "+
+							"{ panic("+tmpVar+") };"),
+				)
+				for _, arg := range rhs.Args {
+					v.VisitExpr(scope, arg)
+				}
+				return nil
+			}
+		}
 	}
 	return v
 }
