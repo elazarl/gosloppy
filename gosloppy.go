@@ -60,6 +60,8 @@ func main() {
 		if p := recover(); p != nil {
 			if p, ok := p.(exitCode); ok {
 				os.Exit(int(p))
+			} else {
+				panic(p)
 			}
 		}
 	}()
