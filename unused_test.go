@@ -119,4 +119,22 @@ var UnusedSimple = []struct {
 		`,
 		[]string{"T", `"io/ioutil"`},
 	},
+	{
+		`package main
+		func main() {
+			for i := 0; i <= 10; i++ {
+			}
+		}
+		`,
+		[]string{"main"},
+	},
+	{
+		`package main
+		func main() {
+			for i := 0; true; {
+			}
+		}
+		`,
+		[]string{"i", "main"},
+	},
 }
