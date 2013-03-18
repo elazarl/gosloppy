@@ -251,7 +251,9 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
 			scope := ast.NewScope(file.Scope)
-			if d.Recv != nil {
+			// Note that reciever might be anonymous, e.g. crypto/elliptic/p224.go:78
+			// func (p224Curve) Add(bigX1, bigY1, bigX2, bigY2 *big.Int) (x, y *big.Int) {
+			if d.Recv != nil && len(d.Recv.List) > 0 && len(d.Recv.List[0].Names) > 0 {
 				insertToScope(scope, d.Recv.List[0].Names[0].Obj)
 			}
 			WalkFields(v, d.Type.Params.List, scope)
