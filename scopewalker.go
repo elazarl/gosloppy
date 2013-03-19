@@ -9,6 +9,7 @@ import (
 type ScopeVisitor interface {
 	VisitExpr(scope *ast.Scope, expr ast.Expr) (w ScopeVisitor)
 	VisitStmt(scope *ast.Scope, stmt ast.Stmt) (w ScopeVisitor)
+	VisitDecl(scope *ast.Scope, stmt ast.Decl) (w ScopeVisitor)
 	// TODO(elazar): rethink the API, we probably want to give here a list of scopes
 	ExitScope(scope *ast.Scope, parent ast.Node, last bool) (w ScopeVisitor)
 }

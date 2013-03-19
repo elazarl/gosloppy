@@ -51,6 +51,10 @@ func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
+func (v *ShortError) VisitDecl(scope *ast.Scope, stmt ast.Decl) ScopeVisitor {
+	panic("Not implemented")
+}
+
 func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	v.stmt = stmt
 	switch stmt := stmt.(type) {

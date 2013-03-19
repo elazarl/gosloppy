@@ -50,6 +50,11 @@ func (v VerifyVisitor) verify(n ast.Node) {
 	}
 }
 
+func (v VerifyVisitor) VisitDecl(scope *ast.Scope, expr ast.Decl) ScopeVisitor {
+	// v.verify(expr) TODO(elazar): make sure it works as well
+	return v
+}
+
 func (v VerifyVisitor) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {
 	v.verify(expr)
 	return v
@@ -114,6 +119,10 @@ func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 			(*testing.T)(t).Errorf("Expected %v, got %v in scope", brothers, scopeNames(scope))
 		}
 	}
+	return t
+}
+
+func (t *BrothersTest) VisitDecl(scope *ast.Scope, stmt ast.Decl) ScopeVisitor {
 	return t
 }
 
@@ -186,6 +195,10 @@ func scopeNames(scope *ast.Scope) (names []string) {
 	}
 	sort.Strings(names)
 	return
+}
+
+func (v *VerifyExitScope) VisitDecl(scope *ast.Scope, expr ast.Decl) ScopeVisitor {
+	return v
 }
 
 func (v *VerifyExitScope) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {

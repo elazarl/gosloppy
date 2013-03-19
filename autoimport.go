@@ -37,6 +37,10 @@ func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
+func (v *AutoImporter) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
+	return v
+}
+
 func (v *AutoImporter) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return v
 }

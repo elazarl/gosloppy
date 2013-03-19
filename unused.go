@@ -29,6 +29,10 @@ func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor {
 	return v
 }
 
+func (v *UnusedVisitor) VisitDecl(*ast.Scope, ast.Decl) ScopeVisitor {
+	return v
+}
+
 func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:

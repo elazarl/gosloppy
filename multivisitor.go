@@ -47,6 +47,19 @@ func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return v
 }
 
+func (v MultiVisitor) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
+	for i, w := range v.ar {
+		if w == nil {
+			continue
+		}
+		v = MultiVisitor{v.Set(i, w.VisitDecl(scope, decl))}
+	}
+	if v.AllNil() {
+		return nil
+	}
+	return v
+}
+
 func (v MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	for i, w := range v.ar {
 		if w == nil {

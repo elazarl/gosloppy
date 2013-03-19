@@ -11,6 +11,7 @@ type vis int
 func (v vis) ExitScope(*ast.Scope, ast.Node, bool) ScopeVisitor { return v }
 func (v vis) VisitExpr(*ast.Scope, ast.Expr) ScopeVisitor       { return v }
 func (v vis) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor       { return v }
+func (v vis) VisitDecl(*ast.Scope, ast.Decl) ScopeVisitor       { return v }
 
 func expect(t *testing.T, vs *cow, expected ...int) {
 	intvisitor := []int{}
