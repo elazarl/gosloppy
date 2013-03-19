@@ -2,7 +2,7 @@
 
 function check {
 	[ -f "./$1" ] || (echo no binary $1;false)
-	OUT=$(./$@)
+	OUT=$(./$@ 2>&1)
 	[ SUCCESS = "$OUT" ] || (echo $@ "->" $OUT != SUCCESS;false)
 }
 
