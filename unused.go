@@ -15,29 +15,29 @@ func anonymousImport(name *ast.Ident) bool {
 }
 
 func NewUnusedVisitor(v Visitor) *UnusedVisitor {
-	return &UnusedVisitor{make(map[*ast.Object]ast.Node), make(map[string]bool), v}
+	return &UnusedVisitor{make(map[*ast.Object]bool), make(map[string]bool), v}
 }
 
 type UnusedVisitor struct {
-	Used        map[*ast.Object]ast.Node
+	Used        map[*ast.Object]bool
 	UsedImports map[string]bool
 	Visitor     Visitor
 }
 
-func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt, ast.Node) ScopeVisitor {
+func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor {
 	return v
 }
 
-func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node) ScopeVisitor {
+func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
 		if def := Lookup(scope, expr.Name); def != nil {
-			v.Used[def] = parent
+			v.Used[def] = true
 		} else {
 			v.UsedImports[expr.Name] = true
 		}
 	case *ast.SelectorExpr:
-		v.VisitExpr(scope, expr.X, parent)
+		v.VisitExpr(scope, expr.X)
 		return nil
 	}
 	return v
@@ -45,7 +45,7 @@ func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.No
 
 func (v *UnusedVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	for _, obj := range scope.Objects {
-		if v.Used[obj] == nil {
+		if !v.Used[obj] {
 			v.Visitor.UnusedObj(obj)
 		}
 	}

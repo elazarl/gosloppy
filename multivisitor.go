@@ -21,12 +21,12 @@ func (v MultiVisitor) AllNil() bool {
 	return true
 }
 
-func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node) ScopeVisitor {
+func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	for i, w := range v.ar {
 		if w == nil {
 			continue
 		}
-		v = MultiVisitor{v.Set(i, w.VisitExpr(scope, expr, parent))}
+		v = MultiVisitor{v.Set(i, w.VisitExpr(scope, expr))}
 	}
 	if v.AllNil() {
 		return nil
@@ -34,12 +34,12 @@ func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node
 	return v
 }
 
-func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt, parent ast.Node) ScopeVisitor {
+func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	for i, w := range v.ar {
 		if w == nil {
 			continue
 		}
-		v = MultiVisitor{v.Set(i, w.VisitStmt(scope, stmt, parent))}
+		v = MultiVisitor{v.Set(i, w.VisitStmt(scope, stmt))}
 	}
 	if v.AllNil() {
 		return nil

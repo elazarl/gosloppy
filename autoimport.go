@@ -22,7 +22,7 @@ type AutoImporter struct {
 	pkg     token.Pos
 }
 
-func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Node) ScopeVisitor {
+func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
 		if importname, ok := imports.RevStdlib[expr.Name]; ok && len(importname) == 1 &&
@@ -31,13 +31,13 @@ func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr, parent ast.Nod
 			v.Patches = append(v.Patches, patch.Insert(v.pkg, "; import "+importname[0]))
 		}
 	case *ast.SelectorExpr:
-		v.VisitExpr(scope, expr.X, parent)
+		v.VisitExpr(scope, expr.X)
 		return nil
 	}
 	return v
 }
 
-func (v *AutoImporter) VisitStmt(scope *ast.Scope, stmt ast.Stmt, parent ast.Node) ScopeVisitor {
+func (v *AutoImporter) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return v
 }
 
