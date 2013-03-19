@@ -15,8 +15,12 @@ func (w ConstWriter) Read(b []byte) (int, error) {
 	return len(b), nil
 }
 
+var b, x, y = must(elliptic.GenerateKey(elliptic.P224(), ConstWriter(0)))
+
 func main() {
 	u := must(url.Parse("http://SUCCESS"))
-	b, x, y, err := elliptic.GenerateKey(elliptic.P224(), ConstWriter(0))
-	fmt.Println(u.Host)
+	b, x, y := must(elliptic.GenerateKey(elliptic.P224(), ConstWriter(0)))
+	if must(url.Parse("http://example.com/a/b")).IsAbs() {
+		fmt.Println(u.Host)
+	}
 }
