@@ -115,7 +115,9 @@ func (i *Instrumentable) InstrumentTo(outdir string, f func(file *patch.Patchabl
 				if imp, err := i.doimport(imp); err != nil {
 					return "", err
 				} else {
-					imp.InstrumentTo(outdir, f)
+					if _, err := imp.InstrumentTo(outdir, f); err != nil {
+						return "", err
+					}
 				}
 			}
 		}
@@ -132,7 +134,9 @@ func (i *Instrumentable) InstrumentTo(outdir string, f func(file *patch.Patchabl
 	if err := os.MkdirAll(finaldir, 0755); err != nil {
 		return "", err
 	}
-	InstrumentTo(finaldir, i.Files(), f)
+	if err := InstrumentTo(finaldir, i.Files(), f); err != nil {
+		return "", err
+	}
 	return finaldir, nil
 }
 
