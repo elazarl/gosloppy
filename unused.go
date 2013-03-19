@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/elazarl/gosloppy/imports"
 	"go/ast"
+
+	"github.com/elazarl/gosloppy/imports"
 )
 
 type Visitor interface {
-	UnusedObj(obj *ast.Object)
+	UnusedObj(obj *ast.Object, parent ast.Node)
 	UnusedImport(imp *ast.ImportSpec)
 }
 
@@ -46,7 +47,7 @@ func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor 
 func (v *UnusedVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
 	for _, obj := range scope.Objects {
 		if !v.Used[obj] {
-			v.Visitor.UnusedObj(obj)
+			v.Visitor.UnusedObj(obj, node)
 		}
 	}
 	if file, ok := node.(*ast.File); ok {

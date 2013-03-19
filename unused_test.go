@@ -11,7 +11,7 @@ func equal(a, b []string) {
 
 type unusedNames func(string)
 
-func (f unusedNames) UnusedObj(obj *ast.Object) {
+func (f unusedNames) UnusedObj(obj *ast.Object, parent ast.Node) {
 	f(obj.Name)
 }
 
