@@ -138,10 +138,11 @@ func main() {
 		pkg, err = instrument.Import(*basedir, gocmd.Packages[0])
 	}
 	die(err)
+	shorterror := &ShortError{}
 	outdir, err := pkg.Instrument(func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
+		shorterror.SetFile(p)
 		autoimport := NewAutoImporter(p.File)
-		shorterror := NewShortError(p)
 		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport, shorterror), p.File)
 		return append(append(patches.patches, autoimport.Patches...), shorterror.Patches()...)
 	})

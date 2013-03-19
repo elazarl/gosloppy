@@ -20,9 +20,12 @@ type ShortError struct {
 	initTxt *[]byte
 }
 
-func NewShortError(file *patch.PatchableFile) *ShortError {
-	patches := make(patch.Patches, 0, 10)
-	return &ShortError{file, &patches, nil, nil, 0, new([]byte)}
+func (v *ShortError) SetFile(file *patch.PatchableFile) *ShortError {
+	v.file = file
+	v.patches = new(patch.Patches)
+	v.stmt, v.block = nil, nil
+	v.initTxt = new([]byte)
+	return v
 }
 
 func (v *ShortError) Patches() patch.Patches {
