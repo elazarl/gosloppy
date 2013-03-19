@@ -8,7 +8,7 @@ import (
 
 type ConstWriter byte
 
-func (w ConstWriter) Read(b []byte) (int, err) {
+func (w ConstWriter) Read(b []byte) (int, error) {
 	for i := 0; i < len(b); i++ {
 		b[i] = byte(w)
 	}
