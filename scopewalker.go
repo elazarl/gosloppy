@@ -249,6 +249,10 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 		return
 	}
 	for _, d := range file.Decls {
+		w := v.VisitDecl(file.Scope, d)
+		if w == nil {
+			continue
+		}
 		switch d := d.(type) {
 		case *ast.FuncDecl:
 			scope := ast.NewScope(file.Scope)
@@ -257,23 +261,23 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 			if d.Recv != nil && len(d.Recv.List) > 0 && len(d.Recv.List[0].Names) > 0 {
 				insertToScope(scope, d.Recv.List[0].Names[0].Obj)
 			}
-			WalkFields(v, d.Type.Params.List, scope)
+			WalkFields(w, d.Type.Params.List, scope)
 			// see http://golang.org/ref/spec#Function_declarations
 			// "A function declaration may omit the body.
 			//  Such a declaration provides the signature for a function implemented outside Go,
 			//  such as an assembly routine."
 			// for example sigpipe at os/file_posix.go
 			if d.Body != nil {
-				WalkStmt(v, d.Body, scope)
+				WalkStmt(w, d.Body, scope)
 			}
-			v.ExitScope(scope, d, true)
+			w.ExitScope(scope, d, true)
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch spec := spec.(type) {
 				case *ast.ValueSpec:
 					// already in scope insertToScope(file.Scope, spec.Names)
 					for _, value := range spec.Values {
-						WalkExpr(v, value, file.Scope)
+						WalkExpr(w, value, file.Scope)
 					}
 				}
 			}
