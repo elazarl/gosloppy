@@ -54,10 +54,7 @@ func findinit(file *ast.File) *ast.FuncDecl {
 }
 
 func afterImports(file *ast.File) token.Pos {
-	if len(file.Imports) > 0 {
-		return file.Imports[len(file.Imports)-1].End()
-	}
-	return file.Name.End()
+	return file.End()
 }
 
 func (v *ShortError) addToInit(txt string) {
@@ -67,8 +64,13 @@ func (v *ShortError) addToInit(txt string) {
 func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	if expr, ok := expr.(*ast.CallExpr); ok {
 		if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
+			if len(expr.Args) != 1 {
+				pos := v.file.Fset.Position(fun.Pos())
+				fmt.Println("%s:%d:%d: 'must' builtin must be called with exactly one argument", pos.Filename, pos.Line, pos.Column)
+				return nil
+			}
 			tmpVar, tmpErr := v.tempVar("tmp_", scope), v.tempVar("err_", scope)
-			mustexpr := v.file.Slice(expr.Lparen+1, expr.Rparen)
+			mustexpr := v.file.Get(expr.Args[0])
 			if v.block == nil {
 				// if in top level decleration
 				v.addToInit("if " + tmpErr + " != nil {panic(" + tmpErr + ")};")
@@ -88,7 +90,26 @@ func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 
 func (v *ShortError) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
 	if decl, ok := decl.(*ast.GenDecl); ok {
-		var _ = decl
+		for _, spec := range decl.Specs {
+			// We'll act only in cases like top level `var a, b, c = must(expr)`
+			if spec, ok := spec.(*ast.ValueSpec); ok && len(spec.Values) == 1 {
+				if fun, ok := spec.Values[0].(*ast.CallExpr); ok {
+					if name, ok := fun.Fun.(*ast.Ident); !ok || name.Name != MustKeyword {
+						return v
+					}
+					if len(fun.Args) != 1 {
+						pos := v.file.Fset.Position(fun.Pos())
+						fmt.Println("%s:%d:%d: 'must' builtin must be called with exactly one argument", pos.Filename, pos.Line, pos.Column)
+						return nil
+					}
+					tmpErr := v.tempVar("tlderr_", scope)
+					*v.patches = append(*v.patches,
+						patch.Insert(spec.Names[len(spec.Names)-1].End(), ", "+tmpErr),
+						patch.Replace(fun, v.file.Get(fun.Args[0])))
+					v.addToInit("if " + tmpErr + " != nil { panic(" + tmpErr + ") }")
+				}
+			}
+		}
 		return nil
 	}
 	return v
