@@ -85,11 +85,30 @@ func TestGuessSubpackage(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("test",
-				dir("sub1", file("sub1.go", "koko")),
-				dir("sub3", file("sub3.go", "koko")),
-			)).AssertEqual("temp", t)
+			dir("locals", dir("__", dir("sub1", file("sub1.go", "koko")))),
+			file("sub3.go", "koko"),
+		).AssertEqual("temp", t)
 	}()
+}
+
+func TestDontTakeStdLibByDefault(t *testing.T) {
+	fs := dir(
+		"test",
+		file("main.go", `package main;import "fmt";func main() {fmt.Println()}`),
+	)
+	OrFail(fs.Build("."), t)
+	defer func() { OrFail(os.RemoveAll("test"), t) }()
+	pkg, err := ImportDir("", "test")
+	OrFail(err, t)
+	OrFail(os.Mkdir("temp", 0755), t)
+	defer func() { OrFail(os.RemoveAll("temp"), t) }()
+	_, err = pkg.InstrumentTo("temp", func(pf *patch.PatchableFile) patch.Patches {
+		return patch.Patches{patch.Replace(pf.File, "koko")}
+	})
+	OrFail(err, t)
+	dir("temp",
+		file("main.go", "koko"),
+	).AssertEqual("temp", t)
 }
 
 func TestGuessStdlibPkg(t *testing.T) {
@@ -102,8 +121,8 @@ func TestGuessStdlibPkg(t *testing.T) {
 	})
 	OrFail(err, t)
 	dir("temp",
-		dir("ioutil", file("ioutil.go", "koko")),
-		file("io.go", "koko"),
+		dir("gopath", dir("io", file("io.go", "koko"))),
+		file("ioutil.go", "koko"),
 	).AssertContains("temp", t)
 }
 
@@ -133,8 +152,8 @@ func TestGuessSubpkgGopath(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("sub1", file("sub1.go", "koko")),
-			dir("sub3", dir("subsub3", file("subsub3.go", "koko"))),
+			dir("gopath", dir("mypkg", dir("sub1", file("sub1.go", "koko")))),
+			file("subsub3.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 }
@@ -150,7 +169,7 @@ func TestSubDir(t *testing.T) {
 	OrFail(fs.Build("."), t)
 	defer func() { OrFail(os.RemoveAll("test"), t) }()
 	func() {
-		pkg, err := ImportDir("test", "test")
+		pkg, err := ImportDir(".", "test")
 		OrFail(err, t)
 		if fmt.Sprint(pkg.Files()) != "[test/base.go test/a_test.go]" {
 			t.Fatal("Expected [test/base.go test/a_test.go] got", pkg.Files())
@@ -162,13 +181,14 @@ func TestSubDir(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("sub1", file("sub1.go", "koko")),
-			dir("sub2", file("sub2.go", "koko")),
+			dir("locals",
+				dir("sub1", file("sub1.go", "koko")),
+				dir("sub2", file("sub2.go", "koko"))),
 			file("base.go", "koko"), file("a_test.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 	func() {
-		pkg, err := ImportDir("test", "test/sub3")
+		pkg, err := ImportDir(".", "test/sub3")
 		OrFail(err, t)
 		if fmt.Sprint(pkg.Files()) != "[test/sub3/sub3.go]" {
 			t.Fatal("Expected [test/sub3/sub3.go] got", pkg.Files())
@@ -180,12 +200,12 @@ func TestSubDir(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("sub1", file("sub1.go", "koko")),
-			dir("sub3", file("sub3.go", "koko")),
+			dir("locals", dir("__", dir("sub1", file("sub1.go", "koko")))),
+			file("sub3.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 	func() {
-		pkg, err := ImportDir("test/sub3", "test/sub3")
+		pkg, err := ImportDir("./sub3", "test/sub3")
 		OrFail(err, t)
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
@@ -198,7 +218,7 @@ func TestSubDir(t *testing.T) {
 		).AssertEqual("temp", t)
 	}()
 	func() {
-		pkg, err := ImportDir("test", "test/sub2")
+		pkg, err := ImportDir(".", "test/sub2")
 		OrFail(err, t)
 		if fmt.Sprint(pkg.Files()) != "[test/sub2/sub2.go]" {
 			t.Fatal("Expected [test/sub2/sub2.go] got", pkg.Files())
@@ -210,7 +230,7 @@ func TestSubDir(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("sub2", file("sub2.go", "koko")),
+			file("sub2.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 }
@@ -240,9 +260,9 @@ func TestGopathSubDir(t *testing.T) {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
-		dir("temp",
+		dir("temp", dir("gopath", dir("mypkg",
 			dir("sub1", file("sub1.go", "koko")),
-			dir("sub2", file("sub2.go", "koko")),
+			dir("sub2", file("sub2.go", "koko")))),
 			file("base.go", "koko"), file("a_test.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
@@ -258,9 +278,9 @@ func TestGopathSubDir(t *testing.T) {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
-		dir("temp",
-			dir("sub1", file("sub1.go", "koko")),
-			dir("sub3", dir("subsub3", file("subsub3.go", "koko"))),
+		dir("temp", dir("gopath", dir("mypkg",
+			dir("sub1", file("sub1.go", "koko")))),
+			file("subsub3.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 	func() {
@@ -276,7 +296,7 @@ func TestGopathSubDir(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("subsub3", file("subsub3.go", "koko")),
+			file("subsub3.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 	func() {
@@ -289,7 +309,7 @@ func TestGopathSubDir(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("sub2", file("sub2.go", "koko")),
+			file("sub2.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
 }

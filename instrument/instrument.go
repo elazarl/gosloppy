@@ -57,6 +57,8 @@ func guessBasepkg(importpath string) string {
 // packages a/b/c, a/b and a/x. Calling Import("a/b", "a/b/c") will instrument
 // pacakges a/b and a/b/c. Calling Import("a/b/c", "a/b/c") will instrument package "a/b/c"
 // alone.
+// If our package is not in $GOPATH, (typically built with `cd pkg;go build -o a.out`), the
+// default empty basepkg will always import all relative paths.
 func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	if pkg, err := build.Import(pkgname, "", 0); err != nil {
 		return nil, err
@@ -84,11 +86,16 @@ func (i *Instrumentable) IsInGopath() bool {
 	return i.pkg.ImportPath != "."
 }
 
+// relevantImport will determine whether this import should be instrumented as well
 func (i *Instrumentable) relevantImport(imp string) bool {
-	if !i.IsInGopath() && build.IsLocalImport(imp) {
-		imp = filepath.Clean(filepath.Join(i.pkg.Dir, imp))
+	if i.basepkg == "*" {
+		return true
+	} else if i.IsInGopath() || i.basepkg != "" {
+		return filepath.HasPrefix(imp, i.basepkg) || filepath.HasPrefix(i.basepkg, imp)
+	} else {
+		return build.IsLocalImport(imp)
 	}
-	return filepath.HasPrefix(imp, i.basepkg)
+	panic("unreachable")
 }
 
 func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
@@ -108,36 +115,36 @@ func (i *Instrumentable) Instrument(f func(file *patch.PatchableFile) patch.Patc
 	return i.InstrumentTo(d, f)
 }
 
+func localize(pkg string) string {
+	if build.IsLocalImport(pkg) {
+		// TODO(elazar): check if `import "./a/../a"` is equivalent to "./a"
+		pkg := filepath.Clean(pkg)
+		return filepath.Join(".", "locals", strings.Replace(pkg, ".", "_", -1))
+	}
+	return filepath.Join("gopath", pkg)
+}
+
 func (i *Instrumentable) InstrumentTo(outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
 	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
 		for _, imp := range imps {
 			if i.relevantImport(imp) {
-				if imp, err := i.doimport(imp); err != nil {
+				if pkg, err := i.doimport(imp); err != nil {
 					return "", err
 				} else {
-					if _, err := imp.InstrumentTo(outdir, f); err != nil {
+					if _, err := pkg.InstrumentTo(filepath.Join(outdir, localize(imp)), f); err != nil {
 						return "", err
 					}
 				}
 			}
 		}
 	}
-	rel, err := filepath.Rel(i.basepkg, i.pkg.ImportPath)
-	// if we used build.ImportDir, we'll get a package with ImportPath "." and Dir as the package's source dir
-	if build.IsLocalImport(i.pkg.ImportPath) {
-		rel, err = filepath.Rel(i.basepkg, i.pkg.Dir)
-	}
-	if err != nil {
+	if err := os.MkdirAll(outdir, 0755); err != nil {
 		return "", err
 	}
-	finaldir := filepath.Join(outdir, rel)
-	if err := os.MkdirAll(finaldir, 0755); err != nil {
+	if err := InstrumentTo(outdir, i.Files(), f); err != nil {
 		return "", err
 	}
-	if err := InstrumentTo(finaldir, i.Files(), f); err != nil {
-		return "", err
-	}
-	return finaldir, nil
+	return outdir, nil
 }
 
 // Instrument parses all gofiles, invoke f on any file, and then writes it with the same name to outdir
