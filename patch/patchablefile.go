@@ -45,8 +45,7 @@ func ParsePatchable(name string) (*PatchableFile, error) {
 }
 
 func (p *PatchableFile) Get(node ast.Node) string {
-	start, end := node.Pos(), node.End()
-	return p.Orig[start-1 : end-1]
+	return p.Slice(node.Pos(), node.End())
 }
 
 func (p *PatchableFile) Slice(from, to token.Pos) string {
