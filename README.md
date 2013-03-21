@@ -61,6 +61,17 @@ Just for the sake of the exposition, let's see unused variable alone.
     $ ./pkg
     unused, yet works
 
+## Fragmentation of the Go Ecosystem
+
+Would it fragment the Go ecosystem? I think not. GoSloppy, by design, will not be able
+to install a package. Only to run it temporarily in your own sandbox.
+
+If you want to publish a library, or get it with `go get`, GoSloppy will refuse to help
+you.
+
+The idea is - do whatever you want in the privacy of your sandbox. When you publish your
+code - make sure it conform to [Go's spec](http://golang.org/ref/spec).
+
 ## Extra features
 
 You can wrap a function with a new builtin function `must`, so:
