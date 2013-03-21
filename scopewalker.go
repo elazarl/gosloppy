@@ -78,6 +78,11 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 	case *ast.BinaryExpr:
 		WalkExpr(v, expr.X, scope)
 		WalkExpr(v, expr.Y, scope)
+	case *ast.CompositeLit:
+		for _, elt := range expr.Elts {
+			WalkExpr(v, elt, scope)
+		}
+		WalkExpr(v, expr.Type, scope)
 	case *ast.KeyValueExpr:
 		WalkExpr(v, expr.Key, scope)
 		WalkExpr(v, expr.Value, scope)
