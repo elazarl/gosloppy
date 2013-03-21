@@ -272,7 +272,11 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 			if d.Recv != nil && len(d.Recv.List) > 0 && len(d.Recv.List[0].Names) > 0 {
 				insertToScope(scope, d.Recv.List[0].Names[0].Obj)
 			}
+			// Params is always non-nil, since we always have parens, and need to know their pos
 			WalkFields(w, d.Type.Params.List, scope)
+			if d.Type.Results != nil {
+				WalkFields(w, d.Type.Results.List, scope)
+			}
 			// see http://golang.org/ref/spec#Function_declarations
 			// "A function declaration may omit the body.
 			//  Such a declaration provides the signature for a function implemented outside Go,
