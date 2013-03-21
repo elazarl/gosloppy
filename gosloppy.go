@@ -45,8 +45,10 @@ func compareAssgn(lhs interface{}, rhs ast.Stmt) bool {
 }
 
 func (p *patchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
-	if _, ok := obj.Decl.(*ast.Field); ok {
-		return // if the unused variable is a function argument - ignore
+	// if the unused variable is a function argument, or TLD - ignore
+	switch obj.Decl.(type) {
+	case *ast.Field, *ast.GenDecl, *ast.TypeSpec:
+		return
 	}
 	if obj.Kind == ast.Fun {
 		return
