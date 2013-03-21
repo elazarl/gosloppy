@@ -4,9 +4,11 @@
 
 [ ] Replace the blasphemy ./test/all.test is, with a python/go script
 
+[ ] Move dir("d", file("name", "content")) into its own package.
+
 ## `$GOPATH` and subpackages
 
-[V] Make sure subpackages works right. PARTLY DONE
+[V] Make sure subpackages works right. DONE
     a. If you know your import path - instrument packages below you, or directly above you
        (if you're "github.com/foo/bar", then if strings.HasPrefix(x, "github.com/foo/bar"), or
        or strings.HasPrefix("github.com/foo/bar", x), package will be instrumented.
@@ -26,8 +28,6 @@
 
 [ ] support gosloppy run file1.go file2.go
 
-[ ] Move dir("d", file("name", "content")) into its own package.
-
 [V] Take into account package namespace.
 
     $ cat a.go
@@ -38,14 +38,16 @@
 
 [V] Auto import of packages from the standard library. Must before release.
 
-[ ] Easy way to panic on error. Must before release. e.g.
+[V] Easy way to panic on error. Must before release. e.g.
 
-    result, panic := f()
+    result := must(f())
     // equiv:
     result, __temp := f()
     if __temp := err { panic("filename:linenumber", err)
-    
-    log.Println := os.Getwd()
+   
+[ ] Easy way to log errors
+
+    orlog(os.Getwd())
     // equiv:
     __temp := os.Getwd()
     if __temp := err { log.Println("filename:linenumber", err)
