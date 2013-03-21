@@ -177,14 +177,15 @@ func TestSubDir(t *testing.T) {
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
 		_, err = pkg.InstrumentTo("temp", func(pf *patch.PatchableFile) patch.Patches {
-			return patch.Patches{patch.Replace(pf.File, "koko")}
+			return nil
 		})
 		OrFail(err, t)
 		dir("temp",
 			dir("locals",
-				dir("sub1", file("sub1.go", "koko")),
-				dir("sub2", file("sub2.go", "koko"))),
-			file("base.go", "koko"), file("a_test.go", "koko"),
+				dir("sub1", file("sub1.go", "package sub1")),
+				dir("sub2", file("sub2.go", "package sub2"))),
+			file("base.go", `package test1;import "./locals/sub1"`),
+			file("a_test.go", `package test1;import "./locals/sub2"`),
 		).AssertEqual("temp", t)
 	}()
 	func() {
@@ -275,19 +276,19 @@ func TestGopathSubDir(t *testing.T) {
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
 		_, err = pkg.InstrumentTo("temp", func(pf *patch.PatchableFile) patch.Patches {
-			return patch.Patches{patch.Replace(pf.File, "koko")}
+			return nil
 		})
 		OrFail(err, t)
 		dir("temp", dir("gopath", dir("mypkg",
-			dir("sub1", file("sub1.go", "koko")))),
-			file("subsub3.go", "koko"),
+			dir("sub1", file("sub1.go", "package sub1")))),
+			file("subsub3.go", `package subsub3;import "./gopath/mypkg/sub1"`),
 		).AssertEqual("temp", t)
 	}()
 	func() {
 		pkg, err := Import("mypkg/sub3", "mypkg/sub3/subsub3")
 		OrFail(err, t)
 		if len(pkg.Files()) != 1 || pkg.Files()[0] != filepath.Join(gopath, "src", "mypkg", "sub3", "subsub3", "subsub3.go") {
-			t.Fatal("When import \"mypkg/sub3/subsub3\" Expected", filepath.Join(gopath, "src", "mypkg", "sub3", "subsub3", "subsub3.go"))
+			t.Fatal(`When import "mypkg/sub3/subsub3" Expected`, filepath.Join(gopath, "src", "mypkg", "sub3", "subsub3", "subsub3.go"))
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
