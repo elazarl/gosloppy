@@ -49,6 +49,10 @@ func (p *patchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
 	switch obj.Decl.(type) {
 	case *ast.Field, *ast.GenDecl, *ast.TypeSpec:
 		return
+	case *ast.ValueSpec:
+		if _, ok := parent.(*ast.File); ok {
+			return
+		}
 	}
 	if obj.Kind == ast.Fun {
 		return

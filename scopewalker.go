@@ -279,6 +279,7 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 					for _, value := range spec.Values {
 						WalkExpr(w, value, file.Scope)
 					}
+					WalkExpr(w, spec.Type, file.Scope)
 				}
 			}
 		}
