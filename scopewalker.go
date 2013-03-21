@@ -81,6 +81,12 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 	case *ast.KeyValueExpr:
 		WalkExpr(v, expr.Key, scope)
 		WalkExpr(v, expr.Value, scope)
+	case *ast.StructType:
+		for _, field := range expr.Fields.List {
+			// TODO: think of a proper way to walk through field names and let visitor
+			//       know you're in a struct type
+			WalkExpr(v, field.Type, scope)
+		}
 	}
 }
 
@@ -279,6 +285,9 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 					for _, value := range spec.Values {
 						WalkExpr(w, value, file.Scope)
 					}
+					WalkExpr(w, spec.Type, file.Scope)
+				case *ast.TypeSpec:
+					// TODO: think what to do with the name, see above
 					WalkExpr(w, spec.Type, file.Scope)
 				}
 			}
