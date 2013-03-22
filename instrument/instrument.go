@@ -130,12 +130,12 @@ func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
 
 var tempStem = "__instrument.go"
 
-func (i *Instrumentable) Instrument(f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
 	d, err := ioutil.TempDir(".", tempStem)
 	if err != nil {
 		return "", err
 	}
-	return i.InstrumentTo(d, f)
+	return i.InstrumentTo(withtests, d, f)
 }
 
 func localize(pkg string) string {
@@ -149,8 +149,8 @@ func localize(pkg string) string {
 
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
-func (i *Instrumentable) InstrumentTo(outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
-	return i.instrumentTo(true, outdir, "", f)
+func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+	return i.instrumentTo(withtests, outdir, "", f)
 }
 
 func (i *Instrumentable) instrumentTo(istest bool, outdir, mypath string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {

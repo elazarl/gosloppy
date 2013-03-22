@@ -145,7 +145,7 @@ func main() {
 	}
 	die(err)
 	shorterror := &ShortError{}
-	outdir, err := pkg.Instrument(func(p *patch.PatchableFile) patch.Patches {
+	outdir, err := pkg.Instrument(gocmd.Command == "test", func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
 		shorterror.SetFile(p)
 		autoimport := NewAutoImporter(p.File)
