@@ -57,7 +57,7 @@ func (p *patchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
 	if obj.Kind == ast.Fun {
 		return
 	}
-	exempter := "var _ = " + obj.Name
+	exempter := "_ = " + obj.Name
 	switch parent := parent.(type) {
 	case *ast.ForStmt:
 		p.patches = append(p.patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
