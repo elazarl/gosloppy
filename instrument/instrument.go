@@ -20,7 +20,29 @@ type Instrumentable struct {
 // Files will give all .go files of a go pacakge
 func (i *Instrumentable) Files() (files []string) {
 	// TODO(elazar): do not instrument tests unless called with `gosloppy test`
+	for _, gofiles := range [][]string{i.pkg.GoFiles, i.pkg.CgoFiles} {
+		for _, file := range gofiles {
+			files = append(files, filepath.Join(i.pkg.Dir, file))
+		}
+	}
+	return
+}
+
+// TestFiles will give all .go files of the _test.go files using the same package
+func (i *Instrumentable) TestFiles() (files []string) {
+	// TODO(elazar): do not instrument tests unless called with `gosloppy test`
 	for _, gofiles := range [][]string{i.pkg.GoFiles, i.pkg.CgoFiles, i.pkg.TestGoFiles} {
+		for _, file := range gofiles {
+			files = append(files, filepath.Join(i.pkg.Dir, file))
+		}
+	}
+	return
+}
+
+// XTestFiles returns paths all files in external test package
+func (i *Instrumentable) XTestFiles() (files []string) {
+	// TODO(elazar): do not instrument tests unless called with `gosloppy test`
+	for _, gofiles := range [][]string{i.pkg.XTestGoFiles} {
 		for _, file := range gofiles {
 			files = append(files, filepath.Join(i.pkg.Dir, file))
 		}
@@ -128,17 +150,17 @@ func localize(pkg string) string {
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
 func (i *Instrumentable) InstrumentTo(outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
-	return i.instrumentTo(outdir, "", f)
+	return i.instrumentTo(true, outdir, "", f)
 }
 
-func (i *Instrumentable) instrumentTo(outdir, mypath string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+func (i *Instrumentable) instrumentTo(istest bool, outdir, mypath string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
 	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
 		for _, imp := range imps {
 			if i.relevantImport(imp) {
 				if pkg, err := i.doimport(imp); err != nil {
 					return "", err
 				} else {
-					if _, err := pkg.instrumentTo(filepath.Join(outdir, localize(imp)),
+					if _, err := pkg.instrumentTo(false, filepath.Join(outdir, localize(imp)),
 						filepath.Join(mypath, imp), f); err != nil {
 						return "", err
 					}
@@ -149,12 +171,29 @@ func (i *Instrumentable) instrumentTo(outdir, mypath string, f func(file *patch.
 	if err := os.MkdirAll(outdir, 0755); err != nil {
 		return "", err
 	}
-	pkg := patch.NewPatchablePkg()
-	if err := pkg.ParseFiles(i.Files()...); err != nil {
-		return "", err
-	}
-	if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
-		return "", err
+	if !istest {
+		pkg := patch.NewPatchablePkg()
+		if err := pkg.ParseFiles(i.Files()...); err != nil {
+			return "", err
+		}
+		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+			return "", err
+		}
+	} else {
+		pkg := patch.NewPatchablePkg()
+		if err := pkg.ParseFiles(i.TestFiles()...); err != nil {
+			return "", err
+		}
+		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+			return "", err
+		}
+		pkg = patch.NewPatchablePkg()
+		if err := pkg.ParseFiles(i.XTestFiles()...); err != nil {
+			return "", err
+		}
+		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+			return "", err
+		}
 	}
 	return outdir, nil
 }
