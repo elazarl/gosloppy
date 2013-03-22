@@ -19,6 +19,7 @@ type Instrumentable struct {
 
 // Files will give all .go files of a go pacakge
 func (i *Instrumentable) Files() (files []string) {
+	// TODO(elazar): do not instrument tests unless called with `gosloppy test`
 	for _, gofiles := range [][]string{i.pkg.GoFiles, i.pkg.CgoFiles, i.pkg.TestGoFiles} {
 		for _, file := range gofiles {
 			files = append(files, filepath.Join(i.pkg.Dir, file))
@@ -152,9 +153,16 @@ func (i *Instrumentable) instrumentTo(outdir, mypath string, f func(file *patch.
 	if err := pkg.ParseFiles(i.Files()...); err != nil {
 		return "", err
 	}
+	if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+		return "", err
+	}
+	return outdir, nil
+}
+
+func (i *Instrumentable) instrumentPatchable(outdir, mypath string, pkg *patch.PatchablePkg, f func(file *patch.PatchableFile) patch.Patches) error {
 	for filename, file := range pkg.Files {
 		if outfile, err := os.Create(filepath.Join(outdir, filepath.Base(filename))); err != nil {
-			return "", err
+			return err
 		} else {
 			patches := f(file)
 			for _, imp := range file.File.Imports {
@@ -170,10 +178,12 @@ func (i *Instrumentable) instrumentTo(outdir, mypath string, f func(file *patch.
 				}
 			}
 			file.FprintPatched(outfile, file.File, patches)
-			outfile.Close()
+			if err := outfile.Close(); err != nil {
+				return err
+			}
 		}
 	}
-	return outdir, nil
+	return nil
 }
 
 func appendNoContradict(patches patch.Patches, toadd *patch.Patch) patch.Patches {
