@@ -110,7 +110,7 @@ type exitCode int
 
 func die(err error) {
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		os.Stderr.WriteString(err.Error() + "\n")
 		panic(exitCode(-1))
 	}
 }
