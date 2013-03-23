@@ -11,6 +11,9 @@ type ImportCache map[string]string
 
 // will get the package name, or guess it if absent
 func (cache ImportCache) GetNameOrGuess(imp *ast.ImportSpec) string {
+	if imp.Name != nil {
+		return imp.Name.Name
+	}
 	if rv, ok := cache[imp.Path.Value]; ok {
 		return rv
 	}

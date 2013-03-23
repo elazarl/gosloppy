@@ -95,7 +95,11 @@ func (p *patchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
 }
 
 func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
-	p.patches = append(p.patches, patch.Insert(imp.Pos(), "_ "))
+	if imp.Name != nil {
+		p.patches = append(p.patches, patch.Replace(imp.Name, "_"))
+	} else {
+		p.patches = append(p.patches, patch.Insert(imp.Pos(), "_ "))
+	}
 }
 
 func usage() {
