@@ -57,4 +57,6 @@
 [ ] Should we support script mode?
 
     #!/bin/bash -c '$GOPATH/bin/gosloppy'
-    fmt.Println("hello world")
+    fmt.Println
+    
+[ ] Show warnings for unused variables? (maybe you should just use `go build` for that).
