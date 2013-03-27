@@ -69,7 +69,7 @@ func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 		if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
 			if len(expr.Args) != 1 {
 				pos := v.file.Fset.Position(fun.Pos())
-				fmt.Println("%s:%d:%d: 'must' builtin must be called with exactly one argument", pos.Filename, pos.Line, pos.Column)
+				fmt.Printf("%s:%d:%d: 'must' builtin must be called with exactly one argument\n", pos.Filename, pos.Line, pos.Column)
 				return nil
 			}
 			tmpVar, tmpErr := v.tempVar("tmp_", scope), v.tempVar("err_", scope)
@@ -102,7 +102,7 @@ func (v *ShortError) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
 					}
 					if len(fun.Args) != 1 {
 						pos := v.file.Fset.Position(fun.Pos())
-						fmt.Println("%s:%d:%d: 'must' builtin must be called with exactly one argument", pos.Filename, pos.Line, pos.Column)
+						fmt.Printf("%s:%d:%d: 'must' builtin must be called with exactly one argument\n", pos.Filename, pos.Line, pos.Column)
 						return nil
 					}
 					tmpErr := v.tempVar("tlderr_", scope)
