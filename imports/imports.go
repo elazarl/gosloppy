@@ -35,6 +35,7 @@ func getNameOrGuess(imp *ast.ImportSpec) string {
 		rv := parts[len(parts)-1]
 		// I don't want to fail if I can't find the package
 		// maybe the user is smarter than me, so I guess it's name
+		// TODO(elazar): This shouldn't be in general library
 		log.Println("Cannot find package", path, "guessing it's name is", rv)
 		return rv
 	}
