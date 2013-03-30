@@ -42,12 +42,13 @@ f   ( ) {
 	}
 }
 
-func TestPatchableFileSimple(t *testing.T) {
-	var body = `package main
+var body = `package main
 func
 
 f   ( ) {
         }`
+
+func TestPatchableFileSimple(t *testing.T) {
 	buf := new(bytes.Buffer)
 	file, fset := parse(body, t)
 	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
@@ -94,6 +95,22 @@ f   ( ) {
 		`/* before */func
 
 /* f */f   ( ) {
+        }`
+	if buf.String() != exp {
+		t.Errorf("%s\n===\n%s\nfunction differ from orig", exp, buf.String())
+	}
+}
+
+func TestInsertNode(t *testing.T) {
+	file, fset := parse(body, t)
+	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
+
+	buf := new(bytes.Buffer)
+	funcbody := file.Decls[0].(*ast.FuncDecl).Body
+	patchable.FprintPatched(buf, funcbody, Patches{
+		InsertNode(funcbody.Pos(), file.Name)})
+	exp :=
+		`main{
         }`
 	if buf.String() != exp {
 		t.Errorf("%s\n===\n%s\nfunction differ from orig", exp, buf.String())

@@ -21,14 +21,19 @@ type Patch struct {
 	Start  token.Pos
 	End    token.Pos
 	Insert string
+	Node   ast.Node
 }
 
 func Insert(pos token.Pos, insert string) *Patch {
-	return &Patch{pos, pos, insert}
+	return &Patch{pos, pos, insert, nil}
+}
+
+func InsertNode(pos token.Pos, insert ast.Node) *Patch {
+	return &Patch{pos, pos, "", insert}
 }
 
 func Replace(nd ast.Node, replacement string) *Patch {
-	return &Patch{nd.Pos(), nd.End(), replacement}
+	return &Patch{nd.Pos(), nd.End(), replacement, nil}
 }
 
 func ParsePatchable(name string) (*PatchableFile, error) {
@@ -95,7 +100,13 @@ func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []*Patch
 		if nd.Pos() <= patch.Start && nd.End() >= patch.Start {
 			pos := p.Fset.Position(patch.Start)
 			write(&total, &err, w, p.Orig[prev:pos.Offset])
-			write(&total, &err, w, patch.Insert)
+			if patch.Insert != "" {
+				write(&total, &err, w, patch.Insert)
+			}
+			// TODO(elazar): check performance implications
+			if patch.Node != nil {
+				p.FprintPatched(w, patch.Node, patches)
+			}
 			prev = p.Fset.Position(patch.End).Offset
 		}
 	}
