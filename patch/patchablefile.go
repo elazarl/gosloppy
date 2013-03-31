@@ -110,15 +110,31 @@ func (p *PatchableFile) Fprint(w io.Writer, nd ast.Node) (int, error) {
 
 type Patches []Patch
 
-func (p Patches) Len() int           { return len(p) }
-func (p Patches) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p Patches) Less(i, j int) bool { return p[i].StartPos() < p[j].StartPos() }
+type StablePatches struct {
+	patches Patches
+	perm    []int
+}
+
+func (p *StablePatches) Len() int { return len(p.patches) }
+func (p *StablePatches) Swap(i, j int) {
+	p.patches[i], p.patches[j] = p.patches[j], p.patches[i]
+	p.perm[i], p.perm[j] = p.perm[j], p.perm[i]
+}
+
+func (p *StablePatches) Less(i, j int) bool {
+	return p.patches[i].StartPos() < p.patches[j].StartPos() ||
+		p.patches[j].StartPos() == p.patches[i].StartPos() && p.perm[i] < p.perm[j]
+}
 
 func sorted(patches []Patch) Patches {
-	sorted := make(Patches, len(patches))
-	copy(sorted, patches)
+
+	sorted := &StablePatches{make(Patches, len(patches)), make([]int, len(patches))}
+	for i := 0; i < len(sorted.perm); i++ {
+		sorted.perm[i] = i
+	}
+	copy(sorted.patches, patches)
 	sort.Sort(sorted)
-	return sorted
+	return sorted.patches
 }
 
 func write(oldn *int, err *error, w io.Writer, s string) {
