@@ -225,10 +225,10 @@ func (i *Instrumentable) instrumentPatchable(outdir, mypath string, pkg *patch.P
 	return nil
 }
 
-func appendNoContradict(patches patch.Patches, toadd *patch.Patch) patch.Patches {
+func appendNoContradict(patches patch.Patches, toadd patch.Patch) patch.Patches {
 	for _, p := range patches {
-		if toadd.End <= p.End && toadd.End >= p.Start ||
-			toadd.Start <= p.End && toadd.Start >= p.Start {
+		if toadd.EndPos() <= p.EndPos() && toadd.EndPos() >= p.StartPos() ||
+			toadd.StartPos() <= p.EndPos() && toadd.StartPos() >= p.StartPos() {
 			return patches
 		}
 	}

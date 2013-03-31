@@ -5,16 +5,17 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"runtime"
 	"testing"
 )
 
-func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
+func parse(code string, t *testing.T) *PatchableFile {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "", code, parser.DeclarationErrors)
 	if err != nil {
 		t.Fatal("Cannot parse code", err)
 	}
-	return file, fset
+	return &PatchableFile{file.Name.Name, "", file, fset, code}
 }
 
 func TestPatchableFileNoPatches(t *testing.T) {
@@ -24,14 +25,14 @@ func
 f   ( ) {
         }`
 	buf := new(bytes.Buffer)
-	file, fset := parse(body, t)
-	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
-	patchable.Fprint(buf, file)
+	patchable := parse(body, t)
+	patchable.Fprint(buf, patchable.File)
 	if buf.String() != body {
-		t.Errorf("Orig ===:\n%s\nCopy ===:\n%s\n PatchableFile differ from orig", body, buf.String())
+		t.Errorf("Orig ===:\n%s\nCopy ===:\n%s\n PatchableFile differ from orig",
+			patchable.Orig, buf.String())
 	}
 	buf.Reset()
-	patchable.Fprint(buf, file.Decls[0])
+	patchable.Fprint(buf, patchable.File.Decls[0])
 	exp :=
 		`func
 
@@ -50,9 +51,8 @@ f   ( ) {
 
 func TestPatchableFileSimple(t *testing.T) {
 	buf := new(bytes.Buffer)
-	file, fset := parse(body, t)
-	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
-	patchable.FprintPatched(buf, file, Patches{Insert(file.Decls[0].Pos(), "/* before */")})
+	patchable := parse(body, t)
+	patchable.FprintPatched(buf, patchable.File, Patches{Insert(patchable.File.Decls[0].Pos(), "/* before */")})
 	exp :=
 		`package main
 /* before */func
@@ -63,10 +63,10 @@ f   ( ) {
 		t.Errorf("Expected ===:\n%s\nActual ===:\n%s\n PatchableFile differ from expected", exp, buf.String())
 	}
 	buf.Reset()
-	patchable.FprintPatched(buf, file, Patches{Insert(file.Decls[0].Pos(), "/* before */"),
-		Insert(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
-		Replace(file.Decls[0].(*ast.FuncDecl).Name, "g"),
-		Insert(file.Package, "/* package */")})
+	patchable.FprintPatched(buf, patchable.File, Patches{Insert(patchable.File.Decls[0].Pos(), "/* before */"),
+		Insert(patchable.File.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
+		Replace(patchable.File.Decls[0].(*ast.FuncDecl).Name, "g"),
+		Insert(patchable.File.Package, "/* package */")})
 	exp =
 		`/* package */package main
 /* before */func
@@ -77,7 +77,7 @@ f   ( ) {
 		t.Errorf("Expected ===:\n%s\nActual ===:\n%s\n PatchableFile differ from expected", exp, buf.String())
 	}
 	buf.Reset()
-	patchable.FprintPatched(buf, file.Decls[0], Patches{Insert(file.Decls[0].Pos(), "/* before */")})
+	patchable.FprintPatched(buf, patchable.File.Decls[0], Patches{Insert(patchable.File.Decls[0].Pos(), "/* before */")})
 	exp =
 		`/* before */func
 
@@ -87,10 +87,10 @@ f   ( ) {
 		t.Errorf("%s\n===\n%s\nfunction differ from orig", exp, buf.String())
 	}
 	buf.Reset()
-	patchable.FprintPatched(buf, file.Decls[0], Patches{
-		Insert(file.Decls[0].Pos(), "/* before */"),
-		Insert(file.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
-		Insert(file.Package, "/* import */")})
+	patchable.FprintPatched(buf, patchable.File.Decls[0], Patches{
+		Insert(patchable.File.Decls[0].Pos(), "/* before */"),
+		Insert(patchable.File.Decls[0].(*ast.FuncDecl).Name.Pos(), "/* f */"),
+		Insert(patchable.File.Package, "/* import */")})
 	exp =
 		`/* before */func
 
@@ -101,18 +101,30 @@ f   ( ) {
 	}
 }
 
-func TestInsertNode(t *testing.T) {
-	file, fset := parse(body, t)
-	patchable := &PatchableFile{file.Name.Name, "", file, fset, body}
-
+func expect(t *testing.T, node ast.Node, patchable *PatchableFile, exp string, patches ...Patch) {
 	buf := new(bytes.Buffer)
-	funcbody := file.Decls[0].(*ast.FuncDecl).Body
-	patchable.FprintPatched(buf, funcbody, Patches{
-		InsertNode(funcbody.Pos(), file.Name)})
-	exp :=
-		`main{
-        }`
+	patchable.FprintPatched(buf, node, patches)
 	if buf.String() != exp {
-		t.Errorf("%s\n===\n%s\nfunction differ from orig", exp, buf.String())
+		_, filename, line, ok := runtime.Caller(1)
+		if !ok {
+			panic("Cannot call Caller")
+		}
+		t.Errorf("\n%s:%d: Expected:\n%s\nGot:\n%s\n", filename, line,
+			exp, buf.String(),
+		)
 	}
+}
+
+func TestInsertNode(t *testing.T) {
+	patchable := parse(body, t)
+	funcbody := patchable.File.Decls[0].(*ast.FuncDecl).Body
+	expect(t, funcbody, patchable,
+		"main{\n        }", InsertNode(funcbody.Pos(), patchable.File.Name))
+
+	patchable = parse("package kola;func fola()", t)
+	expect(t, patchable.File, patchable,
+		"package func fola()kola;",
+		Remove(patchable.File.Decls[0]),
+		InsertNode(patchable.File.Name.Pos(), patchable.File.Decls[0]),
+	)
 }
