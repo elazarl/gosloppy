@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 
 	"github.com/elazarl/gosloppy/patch"
 )
@@ -118,29 +119,67 @@ func (v *ShortError) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
 	return v
 }
 
+func calltomust(expr ast.Expr) *ast.CallExpr {
+	callexpr, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	if fun, ok := callexpr.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
+		return callexpr
+	}
+	return nil
+}
+
 func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	v.stmt = stmt
 	switch stmt := stmt.(type) {
 	case *ast.BlockStmt:
 		return &ShortError{v.file, v.patches, v.stmt, stmt, 0, new([]byte)}
+	case *ast.ExprStmt:
+		if call := calltomust(stmt.X); call != nil {
+			// TODO(elazarl): depends on number of variables it returns, currently we assume one
+			pos := v.file.Fset.Position(stmt.Pos())
+			fmt.Printf("%s:%d:%d: 'must' builtin must be assigned into variable\n",
+				pos.Filename, pos.Line, pos.Column)
+		}
 	case *ast.AssignStmt:
 		if len(stmt.Rhs) != 1 {
 			return v
 		}
 		if rhs, ok := stmt.Rhs[0].(*ast.CallExpr); ok {
 			if fun, ok := rhs.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
-				tmpVar := v.tempVar("assignerr_", scope)
-				*v.patches = append(*v.patches,
-					patch.Insert(stmt.TokPos, ", "+tmpVar+" "),
-					patch.Replace(fun, ""),
-					patch.Insert(stmt.End(),
-						"; if "+tmpVar+" != nil "+
-							"{ panic("+tmpVar+") };"),
-				)
-				for _, arg := range rhs.Args {
-					v.VisitExpr(scope, arg)
+				if stmt.Tok == token.DEFINE {
+					tmpVar := v.tempVar("assignerr_", scope)
+					*v.patches = append(*v.patches,
+						patch.Insert(stmt.TokPos, ", "+tmpVar+" "),
+						patch.Replace(fun, ""),
+						patch.Insert(stmt.End(),
+							"; if "+tmpVar+" != nil "+
+								"{ panic("+tmpVar+") };"),
+					)
+					for _, arg := range rhs.Args {
+						v.VisitExpr(scope, arg)
+					}
+					return nil
+				} else if stmt.Tok == token.ASSIGN {
+					vars := []string{}
+					for i := 0; i < len(stmt.Lhs); i++ {
+						vars = append(vars, v.tempVar(fmt.Sprint("assgn", i, "_"), scope))
+					}
+					assgnerr := v.tempVar("assgnErr_", scope)
+
+					*v.patches = append(*v.patches,
+						patch.Insert(stmt.Pos(),
+							strings.Join(append(vars, assgnerr), ", ")+":="),
+						patch.InsertNode(stmt.Pos(), rhs.Args[0]),
+						patch.Insert(stmt.Pos(),
+							"; if "+assgnerr+" != nil "+
+								"{ panic("+assgnerr+") };"),
+						patch.Replace(rhs, strings.Join(vars, ", ")),
+					)
+					v.VisitExpr(scope, rhs.Args[0])
+					return nil
 				}
-				return nil
 			}
 		}
 	}
