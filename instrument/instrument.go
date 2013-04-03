@@ -94,6 +94,10 @@ func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	panic("unreachable")
 }
 
+func ImportFiles(basepkg string, files ...string) *Instrumentable {
+	return &Instrumentable{&build.Package{GoFiles: files}, basepkg}
+}
+
 // ImportDir gives a single instrumentable golang package. See Import.
 func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
 	if pkg, err := build.ImportDir(pkgname, 0); err != nil {

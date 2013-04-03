@@ -21,7 +21,8 @@ type GoCmd struct {
 	Executable string
 	Command    string
 	BuildFlags Flags
-	Packages   []string
+	Params     []string
+	ExtraFlags []string
 }
 
 type Flags map[string]string
@@ -61,7 +62,7 @@ func NewGoCmdWithFlags(flags *flag.FlagSet, workdir string, args ...string) (*Go
 	if len(args) < 2 {
 		return nil, errors.New("GoCmd must have at least two arguments (e.g. go build)")
 	}
-	if sort.SearchStrings([]string{"build", "test"}, args[1]) > -1 {
+	if sort.SearchStrings([]string{"build", "run", "test"}, args[1]) > -1 {
 		flags.Int("p", runtime.NumCPU(), "number or parallel builds")
 		for _, f := range []string{"x", "v", "n", "a", "work"} {
 			flags.Bool(f, false, "")
@@ -71,19 +72,41 @@ func NewGoCmdWithFlags(flags *flag.FlagSet, workdir string, args ...string) (*Go
 		}
 	}
 	switch args[1] {
+	case "run":
 	case "build":
 		flags.String("o", "", "output: output file")
-		if err := flags.Parse(args[2:]); err != nil {
-			return nil, err
-		}
 	case "test":
 		for _, f := range []string{"i", "c"} {
 			flags.Bool(f, false, "")
 		}
 	default:
-		return nil, errors.New("Currently only build and test commands supported")
+		return nil, errors.New("Currently only build run and test commands supported")
 	}
-	return &GoCmd{workdir, args[0], args[1], FromFlagSet(flags), flags.Args()}, nil
+	if err := flags.Parse(args[2:]); err != nil {
+		return nil, err
+	}
+	var params, extra []string
+	switch args[1] {
+	case "buid":
+		params = flags.Args()
+	case "run":
+		for i, param := range flags.Args() {
+			if !strings.HasSuffix(param, ".go") {
+				extra = flag.Args()[i:]
+				break
+			}
+			params = append(params, param)
+		}
+	case "test":
+		for i, param := range flags.Args() {
+			if strings.HasPrefix(param, "-") {
+				extra = flag.Args()[i:]
+				break
+			}
+			params = append(params, param)
+		}
+	}
+	return &GoCmd{workdir, args[0], args[1], FromFlagSet(flags), params, extra}, nil
 }
 
 func (cmd *GoCmd) Args() []string {
@@ -91,7 +114,8 @@ func (cmd *GoCmd) Args() []string {
 	for k, v := range cmd.BuildFlags {
 		l = append(l, "-"+k+"="+v)
 	}
-	l = append(l, cmd.Packages...)
+	l = append(l, cmd.Params...)
+	l = append(l, cmd.ExtraFlags...)
 	return l
 }
 
@@ -102,15 +126,18 @@ func (cmd *GoCmd) String() string {
 // Retarget will return a new command line to compile the new target, but keep paths
 // redirected to the original target.
 func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
-	if len(cmd.Packages) > 1 {
+	if len(cmd.Params) > 1 {
 		return nil, errors.New("No support for more than a single package")
 	}
 	var pkg *build.Package
 	var err error
-	if len(cmd.Packages) == 0 {
+	// TODO(elazar): use previous build.Package, or make build.Package cache. no reason to duplicate code
+	if cmd.Command == "run" {
+		pkg = &build.Package{GoFiles: cmd.Params}
+	} else if len(cmd.Params) == 0 {
 		pkg, err = build.ImportDir(cmd.WorkDir, 0)
 	} else {
-		pkg, err = build.Import(cmd.Packages[0], "", 0)
+		pkg, err = build.Import(cmd.Params[0], "", 0)
 	}
 	if err != nil {
 		return nil, err
@@ -121,7 +148,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	}
 	defoutput := pkg.Name + ".a"
 	if pkg.Name == "main" {
-		if len(cmd.Packages) == 0 {
+		if len(cmd.Params) == 0 {
 			// hopefully a legal package will contain at list one file...
 			// the docs says that we should take the name of the first file, reality however
 			// is different: http://code.google.com/p/go/issues/detail?id=5003
@@ -132,11 +159,12 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 			defoutput = filepath.Base(d)
 		} else {
 			// not in the docs, but trying to run `go build pkg` gives a `pkg` executable
-			defoutput = filepath.Base(cmd.Packages[0])
+			defoutput = filepath.Base(cmd.Params[0])
 		}
 	}
 	buildflags := cmd.BuildFlags.Clone()
 	switch cmd.Command {
+	case "run":
 	case "build":
 		v := cmd.BuildFlags["o"]
 		if v == "" {
@@ -147,7 +175,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}
-	return &GoCmd{newdir, cmd.Executable, cmd.Command, buildflags, cmd.Packages}, nil
+	return &GoCmd{newdir, cmd.Executable, cmd.Command, buildflags, cmd.Params, cmd.ExtraFlags}, nil
 }
 
 func (cmd *GoCmd) Runnable() *exec.Cmd {

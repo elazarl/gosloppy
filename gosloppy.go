@@ -142,10 +142,12 @@ func main() {
 	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
 	die(err)
 	var pkg *instrument.Instrumentable
-	if len(gocmd.Packages) == 0 {
+	if gocmd.Command == "run" {
+		pkg = instrument.ImportFiles(*basedir, gocmd.Params...)
+	} else if len(gocmd.Params) == 0 {
 		pkg, err = instrument.ImportDir(*basedir, ".")
 	} else {
-		pkg, err = instrument.Import(*basedir, gocmd.Packages[0])
+		pkg, err = instrument.Import(*basedir, gocmd.Params[0])
 	}
 	die(err)
 	shorterror := &ShortError{}
@@ -164,13 +166,14 @@ func main() {
 		}
 	}()
 	die(err)
-	gocmd, err = gocmd.Retarget(outdir)
+	// newgocmd, so that we can cleanup even if retarget failed
+	newgocmd, err := gocmd.Retarget(outdir)
 	die(err)
 	if f.Lookup("x").Value.String() == "true" {
-		log.Println("Executing:", gocmd)
+		log.Println("Executing:", newgocmd)
 	}
-	die(gocmd.Runnable().Run())
-	if gocmd.Command == "test" && gocmd.BuildFlags["c"] != "" {
+	die(newgocmd.Runnable().Run())
+	if newgocmd.Command == "test" && newgocmd.BuildFlags["c"] != "" {
 		// TODO(elazar): caution, we assume outdir is immediately below us
 		mvToDir(outdir, outdir+".test", ".")
 	}

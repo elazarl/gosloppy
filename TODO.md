@@ -26,7 +26,7 @@
 
 ## Usability
 
-[ ] support gosloppy run file1.go file2.go
+[V] support gosloppy run file1.go file2.go
 
 [ ] Support gosloppy sloppify
 
