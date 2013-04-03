@@ -123,9 +123,9 @@ func (cmd *GoCmd) String() string {
 	return strings.Join(append([]string{cmd.Executable}, cmd.Args()...), " ")
 }
 
-func (cmd *GoCmd) getOutputFileName() (name string, err error) {
+func (cmd *GoCmd) OutputFileName() (name string, ismain bool, err error) {
 	if len(cmd.Params) > 1 {
-		return "", errors.New("No support for more than a single package")
+		return "", false, errors.New("No support for more than a single package")
 	}
 	// TODO(elazar): use previous build.Package, or make build.Package cache. no reason to duplicate code
 	var pkg *build.Package
@@ -135,16 +135,16 @@ func (cmd *GoCmd) getOutputFileName() (name string, err error) {
 		pkg, err = build.Import(cmd.Params[0], "", 0)
 	}
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	if pkg.Name != "main" {
-		return "", errors.New("gosloppy should be used for testing packages or producing executables, not for building packages")
+		return pkg.Name, true, nil
 	}
 	d, err := filepath.Abs(pkg.Dir)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return filepath.Base(d), nil
+	return filepath.Base(d), false, nil
 }
 
 // Retarget will return a new command line to compile the new target, but keep paths
@@ -160,7 +160,10 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	case "build":
 		v := cmd.BuildFlags["o"]
 		if v == "" {
-			name, err := cmd.getOutputFileName()
+			name, ismain, err := cmd.OutputFileName()
+			if ismain {
+				return nil, errors.New("gosloppy won't build non-main package, just for testing packages or producing executables")
+			}
 			if err != nil {
 				return nil, err
 			}

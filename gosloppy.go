@@ -166,7 +166,6 @@ func main() {
 		}
 	}()
 	die(err)
-	// newgocmd, so that we can cleanup even if retarget failed
 	newgocmd, err := gocmd.Retarget(outdir)
 	die(err)
 	if f.Lookup("x").Value.String() == "true" {
@@ -174,7 +173,14 @@ func main() {
 	}
 	die(newgocmd.Runnable().Run())
 	if newgocmd.Command == "test" && newgocmd.BuildFlags["c"] != "" {
-		// TODO(elazar): caution, we assume outdir is immediately below us
-		mvToDir(outdir, outdir+".test", ".")
+		newname, _, err := newgocmd.OutputFileName()
+		if err != nil {
+			panic("Cannot find package name, not producing test executable")
+		}
+		oldname, _, err := gocmd.OutputFileName()
+		if err != nil {
+			panic("Cannot find package name, not producing test executable")
+		}
+		die(os.Rename(filepath.Join(outdir, newname+".test"), oldname+".test"))
 	}
 }

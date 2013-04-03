@@ -37,6 +37,8 @@ find . -maxdepth 1 -name test\* -type d| sort | while read d; do
 		check ensure_minus_o || die $CMD
 		if ls *_test.go &>/dev/null; then
 			$GOSLOPPY test || die $GOSLOPPY test
+			$GOSLOPPY test -c || die $GOSLOPPY test -c
+			TESTFILE="$(basename `pwd`)";test -f $TESTFILE.test || die test -c don\'t create $TESTFILE
 		fi
 	fi
 	)
