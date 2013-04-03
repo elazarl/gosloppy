@@ -123,55 +123,50 @@ func (cmd *GoCmd) String() string {
 	return strings.Join(append([]string{cmd.Executable}, cmd.Args()...), " ")
 }
 
-// Retarget will return a new command line to compile the new target, but keep paths
-// redirected to the original target.
-func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
+func (cmd *GoCmd) getOutputFileName() (name string, err error) {
 	if len(cmd.Params) > 1 {
-		return nil, errors.New("No support for more than a single package")
+		return "", errors.New("No support for more than a single package")
 	}
-	var pkg *build.Package
-	var err error
 	// TODO(elazar): use previous build.Package, or make build.Package cache. no reason to duplicate code
-	if cmd.Command == "run" {
-		pkg = &build.Package{GoFiles: cmd.Params}
-	} else if len(cmd.Params) == 0 {
+	var pkg *build.Package
+	if len(cmd.Params) == 0 {
 		pkg, err = build.ImportDir(cmd.WorkDir, 0)
 	} else {
 		pkg, err = build.Import(cmd.Params[0], "", 0)
 	}
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	if pkg.Name != "main" {
+		return "", errors.New("gosloppy should be used for testing packages or producing executables, not for building packages")
+	}
+	d, err := filepath.Abs(pkg.Dir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Base(d), nil
+}
+
+// Retarget will return a new command line to compile the new target, but keep paths
+// redirected to the original target.
+func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	rel, err := filepath.Rel(newdir, cmd.WorkDir)
 	if err != nil {
 		return nil, err
 	}
-	defoutput := pkg.Name + ".a"
-	if pkg.Name == "main" {
-		if len(cmd.Params) == 0 {
-			// hopefully a legal package will contain at list one file...
-			// the docs says that we should take the name of the first file, reality however
-			// is different: http://code.google.com/p/go/issues/detail?id=5003
-			d, err := filepath.Abs(pkg.Dir)
-			if err != nil {
-				return nil, err
-			}
-			defoutput = filepath.Base(d)
-		} else {
-			// not in the docs, but trying to run `go build pkg` gives a `pkg` executable
-			defoutput = filepath.Base(cmd.Params[0])
-		}
-	}
 	buildflags := cmd.BuildFlags.Clone()
 	switch cmd.Command {
-	case "run":
+	case "run", "test":
 	case "build":
 		v := cmd.BuildFlags["o"]
 		if v == "" {
-			v = defoutput
+			name, err := cmd.getOutputFileName()
+			if err != nil {
+				return nil, err
+			}
+			v = name
 		}
 		buildflags["o"] = filepath.Join(rel, v)
-	case "test":
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}
