@@ -119,10 +119,8 @@ func (i *Instrumentable) relevantImport(imp string) bool {
 		return true
 	} else if i.IsInGopath() || i.basepkg != "" {
 		return filepath.HasPrefix(imp, i.basepkg) || filepath.HasPrefix(i.basepkg, imp)
-	} else {
-		return build.IsLocalImport(imp)
 	}
-	panic("unreachable")
+	return build.IsLocalImport(imp)
 }
 
 func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
@@ -139,7 +137,7 @@ func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.Patchable
 	if err != nil {
 		return "", err
 	}
-	return i.InstrumentTo(withtests, d, f)
+	return d, i.InstrumentTo(withtests, d, f)
 }
 
 func localize(pkg string) string {
@@ -153,53 +151,53 @@ func localize(pkg string) string {
 
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
-func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file *patch.PatchableFile) patch.Patches) error {
 	return i.instrumentTo(withtests, outdir, "", f)
 }
 
-func (i *Instrumentable) instrumentTo(istest bool, outdir, mypath string, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+func (i *Instrumentable) instrumentTo(istest bool, outdir, mypath string, f func(file *patch.PatchableFile) patch.Patches) error {
 	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
 		for _, imp := range imps {
 			if i.relevantImport(imp) {
 				if pkg, err := i.doimport(imp); err != nil {
-					return "", err
+					return err
 				} else {
-					if _, err := pkg.instrumentTo(false, filepath.Join(outdir, localize(imp)),
+					if err := pkg.instrumentTo(false, filepath.Join(outdir, localize(imp)),
 						filepath.Join(mypath, imp), f); err != nil {
-						return "", err
+						return err
 					}
 				}
 			}
 		}
 	}
 	if err := os.MkdirAll(outdir, 0755); err != nil {
-		return "", err
+		return err
 	}
 	if !istest {
 		pkg := patch.NewPatchablePkg()
 		if err := pkg.ParseFiles(i.Files()...); err != nil {
-			return "", err
+			return err
 		}
 		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
-			return "", err
+			return err
 		}
 	} else {
 		pkg := patch.NewPatchablePkg()
 		if err := pkg.ParseFiles(i.TestFiles()...); err != nil {
-			return "", err
+			return err
 		}
 		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
-			return "", err
+			return err
 		}
 		pkg = patch.NewPatchablePkg()
 		if err := pkg.ParseFiles(i.XTestFiles()...); err != nil {
-			return "", err
+			return err
 		}
 		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
-			return "", err
+			return err
 		}
 	}
-	return outdir, nil
+	return nil
 }
 
 func (i *Instrumentable) instrumentPatchable(outdir, mypath string, pkg *patch.PatchablePkg, f func(file *patch.PatchableFile) patch.Patches) error {
