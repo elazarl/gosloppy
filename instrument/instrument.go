@@ -53,7 +53,7 @@ func (i *Instrumentable) XTestFiles() (files []string) {
 func guessBasepkg(importpath string) string {
 	path, err := repoRootForImportPathStatic(importpath)
 	if err != nil {
-		p := filepath.Dir(importpath)
+		p := importpath
 		for strings.Contains(p, "/") {
 			parent := filepath.Dir(p)
 			if _, err := build.Import(parent, "", 0); err != nil {
@@ -83,15 +83,14 @@ func guessBasepkg(importpath string) string {
 // If our package is not in $GOPATH, (typically built with `cd pkg;go build -o a.out`), the
 // default empty basepkg will always import all relative paths.
 func Import(basepkg, pkgname string) (*Instrumentable, error) {
-	if pkg, err := build.Import(pkgname, "", 0); err != nil {
+	pkg, err := build.Import(pkgname, "", 0)
+	if err != nil {
 		return nil, err
-	} else {
-		if basepkg == "" {
-			basepkg = guessBasepkg(pkg.ImportPath)
-		}
-		return &Instrumentable{pkg, basepkg}, nil
 	}
-	panic("unreachable")
+	if basepkg == "" {
+		basepkg = guessBasepkg(pkg.ImportPath)
+	}
+	return &Instrumentable{pkg, basepkg}, nil
 }
 
 func ImportFiles(basepkg string, files ...string) *Instrumentable {
@@ -100,12 +99,11 @@ func ImportFiles(basepkg string, files ...string) *Instrumentable {
 
 // ImportDir gives a single instrumentable golang package. See Import.
 func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
-	if pkg, err := build.ImportDir(pkgname, 0); err != nil {
+	pkg, err := build.ImportDir(pkgname, 0)
+	if err != nil {
 		return nil, err
-	} else {
-		return &Instrumentable{pkg, basepkg}, nil
 	}
-	panic("unreachable")
+	return &Instrumentable{pkg, basepkg}, nil
 }
 
 // IsInGopath returns whether the Instrumentable is a package in a standalone directory or in GOPATH
@@ -133,7 +131,7 @@ func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
 var tempStem = "__instrument.go"
 
 func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
-	d, err := ioutil.TempDir(".", tempStem)
+	d, err := ioutil.TempDir(os.TempDir(), tempStem)
 	if err != nil {
 		return "", err
 	}

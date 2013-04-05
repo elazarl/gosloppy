@@ -13,21 +13,23 @@ function die {
 
 trap 'find . -type f -perm +0111 -not -name all.test|while read f; do rm -f "$f";done' SIGINT SIGTERM EXIT
 echo 'Building project'
-(cd .. && go build -o gosloppy) || die Cannot build project
+(cd .. && go build -o gosloppy -a) || die Cannot build project
 export GOSLOPPY=$(cd ..;echo `pwd`/gosloppy)
 [ -f $GOSLOPPY ] || die gosloppy not built: $GOSLOPPY
-find . -maxdepth 1 -name test\* -type d| sort | while read d; do
+find . -maxdepth 1 -name ${@:-test\*} -type d| sort | while read d; do
 	echo Testing $d
 	(
 	cd $d
-	GOPATH=""
-	if [ -n "gopath*" ]; then
-		GOPATH=(gopath*)
-		GOPATH=$(echo "${GOPATH[*]}"})
-	fi
+	export GOPATH=""
+	for p in "`pwd`"/gopath*; do
+		[ -n "$GOPATH" ] && GOPATH="$GOPATH:"
+		GOPATH="${GOPATH}$p"
+	done
 	if [ -f buildpkg ]; then
-		CMD="$GOSLOPPY build `cat buildpkg` -o tmp"
-		$CMD || die building $CMD
+		cat buildpkg | while read line; do
+			CMD="$GOSLOPPY $line"
+			$CMD || die building $CMD
+		done
 	else
 		CMD="$GOSLOPPY build"
 		$CMD || die buidling $CMD

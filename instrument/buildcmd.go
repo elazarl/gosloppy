@@ -150,7 +150,7 @@ func (cmd *GoCmd) OutputFileName() (name string, ismain bool, err error) {
 // Retarget will return a new command line to compile the new target, but keep paths
 // redirected to the original target.
 func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
-	rel, err := filepath.Rel(newdir, cmd.WorkDir)
+	workdir, err := filepath.Abs(cmd.WorkDir)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 			}
 			v = name
 		}
-		buildflags["o"] = filepath.Join(rel, v)
+		buildflags["o"] = filepath.Join(workdir, v)
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}
@@ -177,7 +177,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 }
 
 func (cmd *GoCmd) Runnable() *exec.Cmd {
-	r := exec.Command("go", cmd.Args()...)
+	r := exec.Command(cmd.Executable, cmd.Args()...)
 	r.Dir = cmd.WorkDir
 	r.Stdin = os.Stdin
 	r.Stdout = os.Stdout

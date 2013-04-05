@@ -158,6 +158,9 @@ func main() {
 		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport, shorterror), p.File)
 		return append(append(patches.patches, autoimport.Patches...), shorterror.Patches()...)
 	})
+	if gocmd.BuildFlags["work"] == "true" {
+		log.Println("Instrumenting to", outdir)
+	}
 	defer func() {
 		if gocmd.BuildFlags["work"] != "true" {
 			if err := os.RemoveAll(outdir); err != nil {
@@ -168,9 +171,16 @@ func main() {
 	die(err)
 	newgocmd, err := gocmd.Retarget(outdir)
 	die(err)
+	newgocmd.Executable = "go"
+	if newgocmd.Command != "run" {
+		newgocmd.Params = nil
+	}
 	if f.Lookup("x").Value.String() == "true" {
+		log.Println("In:", newgocmd.WorkDir)
 		log.Println("Executing:", newgocmd)
 	}
+	// TODO(elazarl): hackish, find better way
+	delete(newgocmd.BuildFlags, "basedir")
 	die(newgocmd.Runnable().Run())
 	if newgocmd.Command == "test" && newgocmd.BuildFlags["c"] != "" {
 		newname, _, err := newgocmd.OutputFileName()
