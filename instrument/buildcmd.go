@@ -127,7 +127,7 @@ func (cmd *GoCmd) String() string {
 
 func (cmd *GoCmd) OutputFileName() (name string, ismain bool, err error) {
 	if len(cmd.Params) > 1 {
-		return "", false, errors.New("No support for more than a single package")
+		return "", false, errors.New("No support for more than a single package:" + strings.Join(cmd.Params, " "))
 	}
 	// TODO(elazar): use previous build.Package, or make build.Package cache. no reason to duplicate code
 	var pkg *build.Package

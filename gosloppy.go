@@ -172,6 +172,7 @@ func main() {
 	newgocmd, err := gocmd.Retarget(outdir)
 	die(err)
 	newgocmd.Executable = "go"
+	// TODO(elazarl): Support build gofile.go gofile2.go
 	if newgocmd.Command != "run" {
 		newgocmd.Params = nil
 	}
@@ -183,7 +184,7 @@ func main() {
 	delete(newgocmd.BuildFlags, "basedir")
 	die(newgocmd.Runnable().Run())
 	if newgocmd.Command == "test" && newgocmd.BuildFlags["c"] != "" {
-		newname, _, err := newgocmd.OutputFileName()
+		_, _, err := newgocmd.OutputFileName()
 		if err != nil {
 			panic("Cannot find package name, not producing test executable")
 		}
@@ -191,6 +192,7 @@ func main() {
 		if err != nil {
 			panic("Cannot find package name, not producing test executable")
 		}
-		die(os.Rename(filepath.Join(outdir, newname+".test"), oldname+".test"))
+		// output name is unclear: http://code.google.com/p/go/issues/detail?id=5230
+		die(os.Rename(filepath.Join(outdir, filepath.Base(outdir)+".test"), oldname+".test"))
 	}
 }

@@ -1,3 +1,3 @@
 test libtest
-build libtest && [ -f libtest ]
-test libtest -c && [ -f libtest.test ]
+build libtest/uselibtest
+test libtest -c
