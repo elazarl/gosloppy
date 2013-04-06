@@ -1,13 +1,21 @@
 package instrument
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func expectEq(exp, act string, t *testing.T) {
 	if exp != act {
-		t.Errorf("Expected %s Got %s", exp, act)
+		_, file, line, ok := runtime.Caller(1)
+		if !ok {
+			panic("cannot be run alone")
+		}
+		fmt.Fprintf(os.Stderr, "%s:%d: Expected %s Got %s", file, line, exp, act)
+		t.Fail()
 	}
 }
 
@@ -18,5 +26,15 @@ func TestGoCmdRetarget(t *testing.T) {
 	OrFail(err, t)
 	cmd, err = cmd.Retarget("pkg/temp")
 	OrFail(err, t)
-	expectEq("go build -o=../koko", cmd.String(), t)
+	path, err := filepath.Abs(filepath.Join(cmd.WorkDir, "../koko"))
+	OrFail(err, t)
+	expectEq(fmt.Sprint("go build -o=", path), cmd.String(), t)
+}
+
+func TestGoCmdParsing(t *testing.T) {
+	cmd, err := NewGoCmd(".", "go", "build", "-o", "koko", "bobo")
+	OrFail(err, t)
+	expectEq("[bobo]", fmt.Sprint(cmd.Params), t)
+	expectEq("[]", fmt.Sprint(cmd.ExtraFlags), t)
+	expectEq("build", fmt.Sprint(cmd.Command), t)
 }

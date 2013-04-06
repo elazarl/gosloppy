@@ -58,55 +58,57 @@ func NewGoCmd(workdir string, args ...string) (*GoCmd, error) {
 	return NewGoCmdWithFlags(flag.NewFlagSet("", flag.ContinueOnError), workdir, args...)
 }
 
-func NewGoCmdWithFlags(flags *flag.FlagSet, workdir string, args ...string) (*GoCmd, error) {
+func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*GoCmd, error) {
 	if len(args) < 2 {
 		return nil, errors.New("GoCmd must have at least two arguments (e.g. go build)")
 	}
 	if sort.SearchStrings([]string{"build", "run", "test"}, args[1]) > -1 {
-		flags.Int("p", runtime.NumCPU(), "number or parallel builds")
+		flagset.Int("p", runtime.NumCPU(), "number or parallel builds")
 		for _, f := range []string{"x", "v", "n", "a", "work"} {
-			flags.Bool(f, false, "")
+			flagset.Bool(f, false, "")
 		}
 		for _, f := range []string{"compiler", "gccgoflags", "gcflags", "ldflags", "tags"} {
-			flag.String(f, "", "")
+			flagset.String(f, "", "")
 		}
 	}
 	switch args[1] {
 	case "run":
 	case "build":
-		flags.String("o", "", "output: output file")
+		flagset.String("o", "", "output: output file")
 	case "test":
 		for _, f := range []string{"i", "c"} {
-			flags.Bool(f, false, "")
+			flagset.Bool(f, false, "")
 		}
 	default:
 		return nil, errors.New("Currently only build run and test commands supported")
 	}
-	if err := flags.Parse(args[2:]); err != nil {
+	if err := flagset.Parse(args[2:]); err != nil {
 		return nil, err
 	}
 	var params, extra []string
 	switch args[1] {
-	case "buid":
-		params = flags.Args()
+	case "build":
+		params = flagset.Args()
 	case "run":
-		for i, param := range flags.Args() {
+		for i, param := range flagset.Args() {
 			if !strings.HasSuffix(param, ".go") {
-				extra = flag.Args()[i:]
+				extra = flagset.Args()[i:]
 				break
 			}
 			params = append(params, param)
 		}
 	case "test":
-		for i, param := range flags.Args() {
+		for i, param := range flagset.Args() {
 			if strings.HasPrefix(param, "-") {
-				extra = flag.Args()[i:]
+				extra = flagset.Args()[i:]
 				break
 			}
 			params = append(params, param)
 		}
+	default:
+		return nil, errors.New("Currently only build run and test commands supported")
 	}
-	return &GoCmd{workdir, args[0], args[1], FromFlagSet(flags), params, extra}, nil
+	return &GoCmd{workdir, args[0], args[1], FromFlagSet(flagset), params, extra}, nil
 }
 
 func (cmd *GoCmd) Args() []string {
