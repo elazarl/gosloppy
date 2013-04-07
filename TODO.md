@@ -24,6 +24,8 @@
 
 [ ] Some light performance tests. If you can see by hand it's working reasonably fast, maybe we can skip them.
 
+[ ] Bug, does not detect import usage in an interface!
+
 ## Usability
 
 [V] support gosloppy run file1.go file2.go
