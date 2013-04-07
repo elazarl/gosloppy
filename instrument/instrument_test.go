@@ -31,7 +31,7 @@ func TestDir(t *testing.T) {
 
 	defer func() { OrFail(os.RemoveAll(outdir), t) }()
 	OrFail(err, t)
-	dir(outdir,
+	dir(filepath.Base(outdir),
 		file("a.go", "koko"),
 		file("a_test.go", "koko"),
 	).AssertEqual(outdir, t)
@@ -153,7 +153,6 @@ func TestGuessSubpkgGopath(t *testing.T) {
 		})
 		OrFail(err, t)
 		dir("temp",
-			dir("gopath", dir("mypkg", dir("sub1", file("sub1.go", "koko")))),
 			file("subsub3.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
@@ -321,7 +320,8 @@ func fatalCaller(t *testing.T, depth int, msgs ...interface{}) {
 	if !ok {
 		t.Fatal("Cannot get caller data")
 	}
-	t.Fatalf("%s:%d: %v", file, line, fmt.Sprintln(msgs...))
+	fmt.Printf("%s:%d: %v", file, line, fmt.Sprintln(msgs...))
+	t.Fail()
 }
 
 func OrFail(err error, t *testing.T) {
