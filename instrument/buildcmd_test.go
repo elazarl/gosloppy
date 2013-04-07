@@ -38,3 +38,19 @@ func TestGoCmdParsing(t *testing.T) {
 	expectEq("[]", fmt.Sprint(cmd.ExtraFlags), t)
 	expectEq("build", fmt.Sprint(cmd.Command), t)
 }
+
+func TestGoCmdParsingTest(t *testing.T) {
+	cmd, err := NewGoCmd(".", "go", "test", "bobo", "-run", "away")
+	OrFail(err, t)
+	expectEq("[bobo]", fmt.Sprint(cmd.Params), t)
+	expectEq("[-run away]", fmt.Sprint(cmd.ExtraFlags), t)
+	expectEq("test", fmt.Sprint(cmd.Command), t)
+}
+
+func TestGoCmdParsingTestNoPkg(t *testing.T) {
+	cmd, err := NewGoCmd(".", "go", "test", "-run", "away")
+	OrFail(err, t)
+	expectEq("[]", fmt.Sprint(cmd.Params), t)
+	expectEq("run=away", fmt.Sprint(cmd.BuildFlags), t)
+	expectEq("test", fmt.Sprint(cmd.Command), t)
+}

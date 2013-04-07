@@ -79,6 +79,22 @@ func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*
 		for _, f := range []string{"i", "c"} {
 			flagset.Bool(f, false, "")
 		}
+		for _, testflag := range []string{
+			"bench",
+			"benchtime",
+			"cpu",
+			"cpuprofile",
+			"memprofile",
+			"memprofilerate",
+			"parallel",
+			"run",
+			"timeout"} {
+			flagset.String(testflag, "", "")
+			flagset.String("test."+testflag, "", "")
+		}
+		flagset.Bool("short", false, "")
+		flagset.Bool("test.short", false, "")
+		flagset.Bool("test.v", false, "")
 	default:
 		return nil, errors.New("Currently only build run and test commands supported")
 	}
