@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"log"
@@ -92,6 +93,23 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 			//       know you're in a struct type
 			WalkExpr(v, field.Type, scope)
 		}
+	case *ast.FuncType:
+		for _, field := range expr.Params.List {
+			WalkExpr(v, field.Type, scope)
+		}
+		if expr.Results != nil {
+			for _, field := range expr.Results.List {
+				WalkExpr(v, field.Type, scope)
+			}
+		}
+	case *ast.InterfaceType:
+		for _, field := range expr.Methods.List {
+			// names don't currently interest you
+			WalkExpr(v, field.Type, scope)
+		}
+	case *ast.Ident, *ast.BasicLit:
+	default:
+		panic(fmt.Sprintf("Canot understand %#v", expr))
 	}
 }
 
@@ -294,7 +312,9 @@ func WalkFile(v ScopeVisitor, file *ast.File) {
 					for _, value := range spec.Values {
 						WalkExpr(w, value, file.Scope)
 					}
-					WalkExpr(w, spec.Type, file.Scope)
+					if spec.Type != nil {
+						WalkExpr(w, spec.Type, file.Scope)
+					}
 				case *ast.TypeSpec:
 					// TODO: think what to do with the name, see above
 					WalkExpr(w, spec.Type, file.Scope)
