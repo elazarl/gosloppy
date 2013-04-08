@@ -137,4 +137,10 @@ var UnusedSimple = []struct {
 		`,
 		[]string{"i", "main"},
 	},
+	{
+		`package main
+		import "fmt"
+		type iface interface { f(fmt.Stringer) }`,
+		[]string{"iface"},
+	},
 }
