@@ -14,6 +14,10 @@
        or strings.HasPrefix("github.com/foo/bar", x), package will be instrumented.
     b. If not, compile only relative subpackages. strings.HasPrefix(x, "./")
 
+[ ] Automatically detect a file is in gopath and act accordingly.
+
+[ ] investigate bugs when trying to use app in gosloppy.
+
 ## Performance
 
 [V] Package cache - a must before release.
@@ -23,8 +27,6 @@
 [V] Permanent cache of standard packages.
 
 [ ] Some light performance tests. If you can see by hand it's working reasonably fast, maybe we can skip them.
-
-[ ] Bug, does not detect import usage in an interface!
 
 ## Usability
 
