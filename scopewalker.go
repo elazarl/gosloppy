@@ -87,6 +87,16 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 	case *ast.KeyValueExpr:
 		WalkExpr(v, expr.Key, scope)
 		WalkExpr(v, expr.Value, scope)
+	case *ast.ArrayType:
+		WalkExpr(v, expr.Elt, scope)
+		if expr.Len != nil {
+			WalkExpr(v, expr.Len, scope)
+		}
+	case *ast.ChanType:
+		WalkExpr(v, expr.Value, scope)
+	case *ast.MapType:
+		WalkExpr(v, expr.Key, scope)
+		WalkExpr(v, expr.Value, scope)
 	case *ast.StructType:
 		for _, field := range expr.Fields.List {
 			// TODO: think of a proper way to walk through field names and let visitor
@@ -232,7 +242,9 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		if stmt.Init != nil {
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
-		WalkExpr(v, stmt.Tag, scope)
+		if stmt.Tag != nil {
+			WalkExpr(v, stmt.Tag, scope)
+		}
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope, stmt)
 	case *ast.TypeSwitchStmt:
