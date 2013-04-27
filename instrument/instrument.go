@@ -15,6 +15,7 @@ import (
 type Instrumentable struct {
 	pkg     *build.Package
 	basepkg string
+	name    string
 }
 
 // Files will give all .go files of a go pacakge
@@ -90,11 +91,11 @@ func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	if basepkg == "" {
 		basepkg = guessBasepkg(pkg.ImportPath)
 	}
-	return &Instrumentable{pkg, basepkg}, nil
+	return &Instrumentable{pkg, basepkg, pkgname}, nil
 }
 
 func ImportFiles(basepkg string, files ...string) *Instrumentable {
-	return &Instrumentable{&build.Package{GoFiles: files}, basepkg}
+	return &Instrumentable{&build.Package{GoFiles: files}, basepkg, ""}
 }
 
 // ImportDir gives a single instrumentable golang package. See Import.
@@ -103,7 +104,7 @@ func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Instrumentable{pkg, basepkg}, nil
+	return &Instrumentable{pkg, basepkg, pkgname}, nil
 }
 
 // IsInGopath returns whether the Instrumentable is a package in a standalone directory or in GOPATH
@@ -125,7 +126,13 @@ func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
 	if build.IsLocalImport(pkg) {
 		return ImportDir(i.basepkg, filepath.Join(i.pkg.Dir, pkg))
 	}
-	return Import(i.basepkg, pkg)
+	// TODO: A bit hackish
+	r, err := Import(i.basepkg, pkg)
+	if err != nil {
+		return r, err
+	}
+	r.name = i.name
+	return r, nil
 }
 
 var tempStem = "__instrument.go"
@@ -150,33 +157,36 @@ func localize(pkg string) string {
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
 func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file *patch.PatchableFile) patch.Patches) error {
-	return i.instrumentTo(withtests, outdir, "", f)
+	return i.instrumentTo(map[string]bool{}, withtests, outdir, "", f)
 }
 
-func (i *Instrumentable) instrumentTo(istest bool, outdir, mypath string, f func(file *patch.PatchableFile) patch.Patches) error {
-	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports} {
+func (i *Instrumentable) instrumentTo(processed map[string]bool, istest bool, outdir, relpath string, f func(file *patch.PatchableFile) patch.Patches) error {
+	if processed[i.pkg.ImportPath] {
+		return nil
+	}
+	processed[i.pkg.ImportPath] = true
+	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports, i.pkg.XTestImports} {
 		for _, imp := range imps {
 			if i.relevantImport(imp) {
-				if pkg, err := i.doimport(imp); err != nil {
+				pkg, err := i.doimport(imp)
+				if err != nil {
 					return err
-				} else {
-					if err := pkg.instrumentTo(false, filepath.Join(outdir, localize(imp)),
-						filepath.Join(mypath, imp), f); err != nil {
-						return err
-					}
+				}
+				if build.IsLocalImport(imp) {
+					imp = filepath.Join(relpath, imp)
+				}
+				if err := pkg.instrumentTo(processed, false, outdir, imp, f); err != nil {
+					return err
 				}
 			}
 		}
-	}
-	if err := os.MkdirAll(outdir, 0755); err != nil {
-		return err
 	}
 	if !istest {
 		pkg := patch.NewPatchablePkg()
 		if err := pkg.ParseFiles(i.Files()...); err != nil {
 			return err
 		}
-		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+		if err := i.instrumentPatchable(outdir, relpath, pkg, f); err != nil {
 			return err
 		}
 	} else {
@@ -184,36 +194,58 @@ func (i *Instrumentable) instrumentTo(istest bool, outdir, mypath string, f func
 		if err := pkg.ParseFiles(i.TestFiles()...); err != nil {
 			return err
 		}
-		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+		if err := i.instrumentPatchable(outdir, relpath, pkg, f); err != nil {
 			return err
 		}
 		pkg = patch.NewPatchablePkg()
 		if err := pkg.ParseFiles(i.XTestFiles()...); err != nil {
 			return err
 		}
-		if err := i.instrumentPatchable(outdir, mypath, pkg, f); err != nil {
+		if err := i.instrumentPatchable(outdir, relpath, pkg, f); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (i *Instrumentable) instrumentPatchable(outdir, mypath string, pkg *patch.PatchablePkg, f func(file *patch.PatchableFile) patch.Patches) error {
+func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.PatchablePkg, f func(file *patch.PatchableFile) patch.Patches) error {
+	path := ""
+	if build.IsLocalImport(relpath) {
+		path = filepath.Join("locals", relpath)
+		path = strings.Replace(path, "..", "__", -1)
+	} else if relpath != "" {
+		path = filepath.Join("gopath", i.pkg.ImportPath)
+	}
+	if err := os.MkdirAll(filepath.Join(outdir, path), 0755); err != nil {
+		return err
+	}
 	for filename, file := range pkg.Files {
-		if outfile, err := os.Create(filepath.Join(outdir, filepath.Base(filename))); err != nil {
+		if outfile, err := os.Create(filepath.Join(outdir, path, filepath.Base(filename))); err != nil {
 			return err
 		} else {
 			patches := f(file)
+			// TODO(elazar): check the relative path from current location (aka relpath, path), to the import path
+			// (aka v)
 			for _, imp := range file.File.Imports {
-				v := imp.Path.Value[1 : len(imp.Path.Value)-1]
-				if !i.relevantImport(v) {
+				switch v := imp.Path.Value[1 : len(imp.Path.Value)-1]; {
+				case v == i.pkg.ImportPath:
+					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"."`))
+				case !i.relevantImport(v):
 					continue
-				}
-				if build.IsLocalImport(v) {
-					v = filepath.Clean(filepath.Join(mypath, v))
-					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"./locals/`+v+`"`))
-				} else {
-					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"./gopath/`+v+`"`))
+				case build.IsLocalImport(v):
+					v = filepath.Clean(filepath.Join(path, v))
+					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"`+v+`"`))
+				default:
+					if v == i.name {
+						v = ""
+					} else {
+						v = filepath.Join("gopath", v)
+					}
+					rel, err := filepath.Rel(path, v)
+					if err != nil {
+						return err
+					}
+					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"./`+rel+`"`))
 				}
 			}
 			file.FprintPatched(outfile, file.File, patches)
