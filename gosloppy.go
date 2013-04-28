@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elazarl/gosloppy/instrument"
 	"github.com/elazarl/gosloppy/patch"
@@ -145,7 +146,23 @@ func main() {
 	if gocmd.Command == "run" {
 		pkg = instrument.ImportFiles(*basedir, gocmd.Params...)
 	} else if len(gocmd.Params) == 0 {
-		pkg, err = instrument.ImportDir(*basedir, ".")
+		wd, err := os.Getwd()
+		if err != nil {
+			panic(exitCode(2))
+		}
+		for _, path := range filepath.SplitList(os.Getenv("GOPATH")) {
+			path = filepath.Join(path, "src")
+			if strings.Contains(wd, path) {
+				rel, err := filepath.Rel(path, wd)
+				die(err)
+				println("Instrumenting pkg", rel)
+				pkg, err = instrument.Import(*basedir, rel)
+				break
+			}
+		}
+		if pkg == nil {
+			pkg, err = instrument.ImportDir(*basedir, ".")
+		}
 	} else {
 		pkg, err = instrument.Import(*basedir, gocmd.Params[0])
 	}
