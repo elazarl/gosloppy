@@ -43,5 +43,5 @@ find . -maxdepth 1 -name ${@:-test\*} -type d| sort | while read d; do
 			TESTFILE="$(basename `pwd`)";test -f $TESTFILE.test || die test -c don\'t create $TESTFILE
 		fi
 	fi
-	)
+	) || die 
 done

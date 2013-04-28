@@ -114,12 +114,12 @@ func (i *Instrumentable) IsInGopath() bool {
 
 // relevantImport will determine whether this import should be instrumented as well
 func (i *Instrumentable) relevantImport(imp string) bool {
-	if i.basepkg == "*" {
+	if i.basepkg == "*" || build.IsLocalImport(imp) {
 		return true
 	} else if i.IsInGopath() || i.basepkg != "" {
 		return filepath.HasPrefix(imp, i.basepkg) || filepath.HasPrefix(i.basepkg, imp)
 	}
-	return build.IsLocalImport(imp)
+	return false
 }
 
 func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
@@ -161,7 +161,7 @@ func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file
 }
 
 func (i *Instrumentable) instrumentTo(processed map[string]bool, istest bool, outdir, relpath string, f func(file *patch.PatchableFile) patch.Patches) error {
-	if processed[i.pkg.ImportPath] {
+	if processed[relpath] {
 		return nil
 	}
 	processed[i.pkg.ImportPath] = true
@@ -173,7 +173,7 @@ func (i *Instrumentable) instrumentTo(processed map[string]bool, istest bool, ou
 					return err
 				}
 				if build.IsLocalImport(imp) {
-					imp = filepath.Join(relpath, imp)
+					imp = "./" + filepath.Join(relpath, imp)
 				}
 				if err := pkg.instrumentTo(processed, false, outdir, imp, f); err != nil {
 					return err
@@ -233,8 +233,11 @@ func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.
 				case !i.relevantImport(v):
 					continue
 				case build.IsLocalImport(v):
-					v = filepath.Clean(filepath.Join(path, v))
-					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"`+v+`"`))
+					rel, err := filepath.Rel(path, filepath.Join("locals", v))
+					if err != nil {
+						return err
+					}
+					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"./`+rel+`"`))
 				default:
 					if v == i.name {
 						v = ""
