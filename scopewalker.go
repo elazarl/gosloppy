@@ -280,7 +280,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		}
 		exitScopes(v, inner, scope, stmt)
 	default:
-		log.Fatalf("Cannot understand %+#v", stmt)
+		log.Panicf("Cannot understand %+#v", stmt)
 	}
 	return
 }
