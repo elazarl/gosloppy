@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -132,6 +133,7 @@ func main() {
 	defer func() {
 		if p := recover(); p != nil {
 			if p, ok := p.(exitCode); ok {
+				panic(p)
 				os.Exit(int(p))
 			} else {
 				panic(p)
@@ -198,8 +200,12 @@ func main() {
 	}
 	// TODO(elazarl): hackish, find better way
 	delete(newgocmd.BuildFlags, "basedir")
+	minusC := newgocmd.BuildFlags["c"] != ""
+	if newgocmd.Command == "test" {
+		newgocmd.BuildFlags["c"] = "true"
+	}
 	die(newgocmd.Runnable().Run())
-	if newgocmd.Command == "test" && newgocmd.BuildFlags["c"] != "" {
+	if newgocmd.Command == "test" {
 		_, _, err := newgocmd.OutputFileName()
 		if err != nil {
 			panic("Cannot find package name, not producing test executable")
@@ -209,6 +215,21 @@ func main() {
 			panic("Cannot find package name, not producing test executable")
 		}
 		// output name is unclear: http://code.google.com/p/go/issues/detail?id=5230
-		die(os.Rename(filepath.Join(outdir, filepath.Base(outdir)+".test"), oldname+".test"))
+		testoutput := filepath.Join(outdir, filepath.Base(outdir)+".test")
+		if minusC {
+			die(os.Rename(testoutput, oldname+".test"))
+		} else {
+			r := exec.Command(testoutput, newgocmd.ExtraFlags...)
+			r.Dir = gocmd.WorkDir
+			r.Stdin = os.Stdin
+			r.Stdout = os.Stdout
+			r.Stderr = os.Stderr
+			err := r.Run()
+			if err, ok := err.(*exec.ExitError); ok {
+				_ = err
+				os.Exit(-1) // TODO(elazar): pry from Go the actual exit code
+			}
+			die(err)
+		}
 	}
 }
