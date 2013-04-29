@@ -83,7 +83,12 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 		for _, elt := range expr.Elts {
 			WalkExpr(v, elt, scope)
 		}
-		WalkExpr(v, expr.Type, scope)
+		// For example, in v = []struct{i int} {{1}, {2}}
+		// the inner `{1}` and inner `{2}` are two composite literals
+		// with no `Type`.
+		if expr.Type != nil {
+			WalkExpr(v, expr.Type, scope)
+		}
 	case *ast.KeyValueExpr:
 		WalkExpr(v, expr.Key, scope)
 		WalkExpr(v, expr.Value, scope)
@@ -216,7 +221,12 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		inner := scope
 		if stmt.Tok == token.ASSIGN {
 			WalkExpr(v, stmt.Key, scope)
-			WalkExpr(v, stmt.Value, scope)
+			// For example, in
+			//     for a := range []int{1, 2, 3} {}
+			// will have Value == nil
+			if stmt.Value != nil {
+				WalkExpr(v, stmt.Value, scope)
+			}
 		} else if stmt.Tok == token.DEFINE {
 			inner = ast.NewScope(inner)
 			insertToScope(inner, stmt.Key.(*ast.Ident).Obj)
