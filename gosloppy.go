@@ -155,7 +155,6 @@ func main() {
 			if strings.Contains(wd, path) {
 				rel, err := filepath.Rel(path, wd)
 				die(err)
-				println("Instrumenting pkg", rel)
 				pkg, err = instrument.Import(*basedir, rel)
 				break
 			}
