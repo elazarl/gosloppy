@@ -25,7 +25,9 @@ find . -maxdepth 1 -name ${@:-test\*} -type d| sort | while read d; do
 		[ -n "$GOPATH" ] && GOPATH="$GOPATH:"
 		GOPATH="${GOPATH}$p"
 	done
-	if [ -f buildpkg ]; then
+	if [ -f run.sh ]; then
+		source ./run.sh
+	elif [ -f buildpkg ]; then
 		cat buildpkg | while read line; do
 			CMD="$GOSLOPPY $line"
 			$CMD || die building $CMD
