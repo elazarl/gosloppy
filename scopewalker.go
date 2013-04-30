@@ -266,7 +266,11 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope, stmt)
 	case *ast.CommClause:
-		inner := WalkStmt(v, stmt.Comm, scope)
+		// Usually: case <- a: cmd1;cmd2;
+		// if stmt.Comm == nil: default:
+		if stmt.Comm != nil {
+			inner := WalkStmt(v, stmt.Comm, scope)
+		}
 		for _, s := range stmt.Body {
 			inner = WalkStmt(v, s, inner)
 		}
