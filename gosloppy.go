@@ -219,6 +219,7 @@ func main() {
 		if minusC {
 			die(os.Rename(testoutput, oldname+".test"))
 		} else {
+			defer os.Remove(testoutput)
 			r := exec.Command(testoutput, newgocmd.ExtraFlags...)
 			r.Dir = gocmd.WorkDir
 			r.Stdin = os.Stdin
@@ -226,8 +227,8 @@ func main() {
 			r.Stderr = os.Stderr
 			err := r.Run()
 			if err, ok := err.(*exec.ExitError); ok {
-				_ = err
-				os.Exit(-1) // TODO(elazar): pry from Go the actual exit code
+				_ = err // TODO(elazar): pry from Go the actual exit code
+				panic(exitCode(-1))
 			}
 			die(err)
 		}
