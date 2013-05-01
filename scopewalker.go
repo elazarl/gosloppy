@@ -198,7 +198,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		if stmt.Init != nil {
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
-		WalkExpr(v, stmt.Cond, scope)
+		WalkExpr(v, stmt.Cond, inner)
 		WalkStmt(v, stmt.Body, inner)
 		if stmt.Else != nil {
 			WalkStmt(v, stmt.Else, inner)
