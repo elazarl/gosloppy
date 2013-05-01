@@ -87,6 +87,13 @@ var UnusedSimple = []struct {
 	},
 	{
 		`package main
+		var _ = struct {token int} {token: 1}
+		var _ = []struct {unused int} { {unused: 1}, {unused: 2} }
+		`,
+		[]string{},
+	},
+	{
+		`package main
 		func init() {
 			if i := 1; i == 1 {
 			}
