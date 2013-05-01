@@ -133,7 +133,6 @@ func main() {
 	defer func() {
 		if p := recover(); p != nil {
 			if p, ok := p.(exitCode); ok {
-				panic(p)
 				os.Exit(int(p))
 			} else {
 				panic(p)
@@ -158,8 +157,16 @@ func main() {
 				rel, err := filepath.Rel(path, wd)
 				die(err)
 				pkg, err = instrument.Import(*basedir, rel)
+				die(err)
 				break
 			}
+		}
+		path := filepath.Join(os.Getenv("GOROOT"), "src", "pkg")
+		if strings.Contains(wd, path) {
+			rel, err := filepath.Rel(path, wd)
+			die(err)
+			pkg, err = instrument.Import(*basedir, rel)
+			die(err)
 		}
 		if pkg == nil {
 			pkg, err = instrument.ImportDir(*basedir, ".")
