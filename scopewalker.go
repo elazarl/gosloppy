@@ -236,7 +236,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		} else {
 			panic("range statement must have := or = token")
 		}
-		WalkStmt(v, stmt.Body, scope)
+		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope, stmt)
 	case *ast.CaseClause:
 		inner := ast.NewScope(scope)

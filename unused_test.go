@@ -65,6 +65,28 @@ var UnusedSimple = []struct {
 	},
 	{
 		`package main
+		func init() {
+			a := 1
+			if true {
+				a := 2
+				_ = a
+			}
+		}
+		`,
+		[]string{"a"},
+	},
+	{
+		`package main
+		func init() {
+			for i := range []int{} {
+				println(i)
+			}
+		}
+		`,
+		[]string{},
+	},
+	{
+		`package main
 		func f(a int) {
 			var _ = func () {
 				b := a
