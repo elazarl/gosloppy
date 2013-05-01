@@ -11,7 +11,7 @@ import (
 
 func parse(code string, t *testing.T) *PatchableFile {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", code, parser.DeclarationErrors)
+	file, err := parser.ParseFile(fset, "", code, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
 		t.Fatal("Cannot parse code", err)
 	}
@@ -40,6 +40,16 @@ f   ( ) {
         }`
 	if buf.String() != exp {
 		t.Errorf("%s\n===\n%s\nfunction differ from orig", exp, buf.String())
+	}
+}
+
+func TestHeaderComment(t *testing.T) {
+	buf := new(bytes.Buffer)
+	body := "//hoho\npackage main"
+	patchable := parse(body, t)
+	patchable.FprintPatched(buf, patchable.File, nil)
+	if buf.String() != body {
+		t.Error("Expected:\n", body, "\nGot:\n", buf.String())
 	}
 }
 
