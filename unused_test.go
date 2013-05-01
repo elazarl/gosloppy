@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"testing"
@@ -19,10 +20,19 @@ func (f unusedNames) UnusedImport(imp *ast.ImportSpec) {
 	f(imp.Path.Value)
 }
 
+var ncase = flag.Int("case", -1, "run specific case only")
+
+func init() {
+	flag.Parse()
+}
+
 // TODO(elazar): more complex tests:
 //   1. What should happen when I `import . "foo"`, and use `var foo` from other package?
 func TestSimpleUnused(t *testing.T) {
 	for i, c := range UnusedSimple {
+		if *ncase != i && *ncase > 0 {
+			continue
+		}
 		file, _ := parse(c.body, t)
 		unused := []string{}
 		WalkFile(NewUnusedVisitor(unusedNames(func(name string) {
@@ -87,10 +97,11 @@ var UnusedSimple = []struct {
 	},
 	{
 		`package main
+		import "go/token"
 		var _ = struct {token int} {token: 1}
 		var _ = []struct {unused int} { {unused: 1}, {unused: 2} }
 		`,
-		[]string{},
+		[]string{`"go/token"`},
 	},
 	{
 		`package main

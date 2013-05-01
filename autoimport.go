@@ -33,6 +33,12 @@ func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	case *ast.SelectorExpr:
 		v.VisitExpr(scope, expr.X)
 		return nil
+	case *ast.KeyValueExpr:
+		if _, ok := expr.Key.(*ast.Ident); !ok {
+			v.VisitExpr(scope, expr.Key)
+		}
+		v.VisitExpr(scope, expr.Value)
+		return nil
 	}
 	return v
 }

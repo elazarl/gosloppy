@@ -44,6 +44,13 @@ func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor 
 	case *ast.SelectorExpr:
 		v.VisitExpr(scope, expr.X)
 		return nil
+	case *ast.KeyValueExpr:
+		// if we get a := struct {Count int} {Count: 1}, disregard Count
+		if _, ok := expr.Key.(*ast.Ident); !ok {
+			v.VisitExpr(scope, expr.Key)
+		}
+		v.VisitExpr(scope, expr.Value)
+		return nil
 	}
 	return v
 }
