@@ -98,6 +98,13 @@ var UnusedSimple = []struct {
 	{
 		`package main
 		import "go/token"
+		type T struct { token int }
+		`,
+		[]string{"T", `"go/token"`},
+	},
+	{
+		`package main
+		import "go/token"
 		var _ = struct {token int} {token: 1}
 		var _ = []struct {unused int} { {unused: 1}, {unused: 2} }
 		`,
