@@ -159,6 +159,7 @@ func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []Patch)
 	// for some reason, the start of an *ast.File is not the initial comment
 	if _, ok := nd.(*ast.File); ok {
 		start = p.Fset.Position(0)
+		end = p.Fset.Position(token.Pos(len(p.Orig) + 1))
 	}
 	prev := start.Offset
 	for _, patch := range sorted {
