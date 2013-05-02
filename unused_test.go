@@ -95,6 +95,7 @@ var UnusedSimple = []struct {
 		`,
 		[]string{},
 	},
+	{"package main;import \"strings\";type T struct {A int};func init() *A { return T{A: strings.Split()} }", []string{}},
 	{
 		`package main
 		import "go/token"
@@ -173,7 +174,7 @@ var UnusedSimple = []struct {
 		type T struct {ioutil string}
 		var _ = T{}.ioutil
 		`,
-		[]string{"T", `"io/ioutil"`},
+		[]string{`"io/ioutil"`},
 	},
 	{
 		`package main

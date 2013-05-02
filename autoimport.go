@@ -9,7 +9,7 @@ import (
 )
 
 func NewAutoImporter(file *ast.File) *AutoImporter {
-	auto := &AutoImporter{patch.Patches{}, make(map[string]bool), file.Name.End()}
+	auto := &AutoImporter{patch.Patches{}, make(map[*ast.Ident]bool), make(map[string]bool), file.Name.End()}
 	for _, imp := range file.Imports {
 		auto.m[imports.GetNameOrGuess(imp)] = true
 	}
@@ -17,28 +17,30 @@ func NewAutoImporter(file *ast.File) *AutoImporter {
 }
 
 type AutoImporter struct {
-	Patches patch.Patches
-	m       map[string]bool
-	pkg     token.Pos
+	Patches    patch.Patches
+	Irrelevant map[*ast.Ident]bool
+	m          map[string]bool
+	pkg        token.Pos
 }
 
 func (v *AutoImporter) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
+		if v.Irrelevant[expr] {
+			return v
+		}
 		if importname, ok := imports.RevStdlib[expr.Name]; ok && len(importname) == 1 &&
 			!v.m[expr.Name] && Lookup(scope, expr.Name) == nil {
 			v.m[expr.Name] = true // don't add it again
 			v.Patches = append(v.Patches, patch.Insert(v.pkg, "; import "+importname[0]))
 		}
 	case *ast.SelectorExpr:
-		v.VisitExpr(scope, expr.X)
-		return nil
+		v.Irrelevant[expr.Sel] = true
 	case *ast.KeyValueExpr:
-		if _, ok := expr.Key.(*ast.Ident); !ok {
-			v.VisitExpr(scope, expr.Key)
+		// if we get a := struct {Count int} {Count: 1}, disregard Count
+		if id, ok := expr.Key.(*ast.Ident); ok {
+			v.Irrelevant[id] = true
 		}
-		v.VisitExpr(scope, expr.Value)
-		return nil
 	}
 	return v
 }

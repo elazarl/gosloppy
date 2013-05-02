@@ -16,11 +16,12 @@ func anonymousImport(name *ast.Ident) bool {
 }
 
 func NewUnusedVisitor(v Visitor) *UnusedVisitor {
-	return &UnusedVisitor{make(map[*ast.Object]bool), make(map[string]bool), v}
+	return &UnusedVisitor{make(map[*ast.Object]bool), make(map[*ast.Ident]bool), make(map[string]bool), v}
 }
 
 type UnusedVisitor struct {
 	Used        map[*ast.Object]bool
+	Irrelevant  map[*ast.Ident]bool
 	UsedImports map[string]bool
 	Visitor     Visitor
 }
@@ -36,21 +37,21 @@ func (v *UnusedVisitor) VisitDecl(*ast.Scope, ast.Decl) ScopeVisitor {
 func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
+		if v.Irrelevant[expr] {
+			return v
+		}
 		if def := Lookup(scope, expr.Name); def != nil {
 			v.Used[def] = true
 		} else {
 			v.UsedImports[expr.Name] = true
 		}
 	case *ast.SelectorExpr:
-		v.VisitExpr(scope, expr.X)
-		return nil
+		v.Irrelevant[expr.Sel] = true
 	case *ast.KeyValueExpr:
 		// if we get a := struct {Count int} {Count: 1}, disregard Count
-		if _, ok := expr.Key.(*ast.Ident); !ok {
-			v.VisitExpr(scope, expr.Key)
+		if id, ok := expr.Key.(*ast.Ident); ok {
+			v.Irrelevant[id] = true
 		}
-		v.VisitExpr(scope, expr.Value)
-		return nil
 	}
 	return v
 }
