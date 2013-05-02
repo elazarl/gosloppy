@@ -178,6 +178,15 @@ var UnusedSimple = []struct {
 	},
 	{
 		`package main
+		import "bytes"
+		func init() {
+			var b bytes.Buffer
+		}
+		`,
+		[]string{"b"},
+	},
+	{
+		`package main
 		func main() {
 			for i := 0; i <= 10; i++ {
 			}

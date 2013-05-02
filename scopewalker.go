@@ -175,6 +175,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 					for _, value := range spec.Values {
 						WalkExpr(v, value, scope)
 					}
+					WalkExpr(v, spec.Type, newscope)
 				default:
 					panic("cannot have an import in a statement (or so I hope)")
 				}
