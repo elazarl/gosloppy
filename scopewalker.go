@@ -257,7 +257,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 			inner = WalkStmt(v, stmt.Init, inner)
 		}
 		if stmt.Tag != nil {
-			WalkExpr(v, stmt.Tag, scope)
+			WalkExpr(v, stmt.Tag, inner)
 		}
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope, stmt)

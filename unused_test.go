@@ -188,6 +188,15 @@ var UnusedSimple = []struct {
 	{
 		`package main
 		func init() {
+			switch x := 1; x {
+			}
+		}
+		`,
+		[]string{},
+	},
+	{
+		`package main
+		func init() {
 			x := []string{}
 			for _ = range x {
 			}
