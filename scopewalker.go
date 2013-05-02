@@ -175,7 +175,9 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 					for _, value := range spec.Values {
 						WalkExpr(v, value, scope)
 					}
-					WalkExpr(v, spec.Type, newscope)
+					if spec.Type != nil {
+						WalkExpr(v, spec.Type, newscope)
+					}
 				default:
 					panic("cannot have an import in a statement (or so I hope)")
 				}
@@ -237,6 +239,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 		} else {
 			panic("range statement must have := or = token")
 		}
+		WalkExpr(v, stmt.X, inner)
 		WalkStmt(v, stmt.Body, inner)
 		exitScopes(v, inner, scope, stmt)
 	case *ast.CaseClause:
