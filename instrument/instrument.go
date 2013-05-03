@@ -2,6 +2,7 @@ package instrument
 
 import (
 	"go/build"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -208,6 +209,23 @@ func (i *Instrumentable) instrumentTo(processed map[string]bool, istest bool, ou
 	return nil
 }
 
+func cp(dst, src string) error {
+	s, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	d, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(d, s); err != nil {
+		d.Close()
+		return err
+	}
+	return d.Close()
+}
+
 func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.PatchablePkg, f func(file *patch.PatchableFile) patch.Patches) error {
 	path := ""
 	if build.IsLocalImport(relpath) {
@@ -218,6 +236,14 @@ func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.
 	}
 	if err := os.MkdirAll(filepath.Join(outdir, path), 0755); err != nil {
 		return err
+	}
+	// copy all none-go files
+	for _, files := range [][]string{i.pkg.CFiles, i.pkg.HFiles, i.pkg.SFiles, i.pkg.SysoFiles} {
+		for _, file := range files {
+			if err := cp(filepath.Join(outdir, path, file), filepath.Join(i.pkg.Dir, file)); err != nil {
+				return err
+			}
+		}
 	}
 	for filename, file := range pkg.Files {
 		if outfile, err := os.Create(filepath.Join(outdir, path, filepath.Base(filename))); err != nil {
