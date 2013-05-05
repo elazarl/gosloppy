@@ -180,8 +180,8 @@ func main() {
 		patches := &patchUnused{patch.Patches{}}
 		shorterror.SetFile(p)
 		autoimport := NewAutoImporter(p.File)
-		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport, shorterror), p.File)
-		return append(append(patches.patches, autoimport.Patches...), shorterror.Patches()...)
+		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport), p.File)
+		return append(patches.patches, autoimport.Patches...)
 	})
 	if gocmd.BuildFlags["work"] == "true" {
 		log.Println("Instrumenting to", outdir)

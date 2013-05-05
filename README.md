@@ -72,21 +72,6 @@ you.
 The idea is - do whatever you want in the privacy of your sandbox. When you publish your
 code - make sure it conform to [Go's spec](http://golang.org/ref/spec).
 
-## Extra features
-
-You can wrap a function with a new builtin function `must`, so:
-
-    println(must(url.Parse("http://a")))
-
-is equivalent to
-
-    tmp, err := url.Parse("http://a")
-    if err != nil { panic(err) }
-    println(tmp)
-
-Note that currently, gosloppy makes no guarantee to the order of execution of
-a function wrapped with `must`.
-
 ## How It Works
 
 ### Birds Eye View
