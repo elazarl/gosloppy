@@ -216,6 +216,7 @@ func TestSubDir(t *testing.T) {
 		OrFail(err, t)
 		dir("temp",
 			file("sub3.go", "koko"),
+			dir("locals", dir("__", dir("sub1", file("sub1.go", "koko")))),
 		).AssertEqual("temp", t)
 	}()
 	func() {

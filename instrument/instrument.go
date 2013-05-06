@@ -220,8 +220,8 @@ func cp(dst, src string) error {
 func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.PatchablePkg, f func(file *patch.PatchableFile) patch.Patches) error {
 	path := ""
 	if build.IsLocalImport(relpath) {
-		path = filepath.Join("locals", relpath)
-		path = strings.Replace(path, "..", "__", -1)
+		path = strings.Replace(relpath, "..", "__", -1)
+		path = filepath.Join("locals", path)
 	} else if relpath != "" {
 		path = filepath.Join("gopath", i.pkg.ImportPath)
 	}
