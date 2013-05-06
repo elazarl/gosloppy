@@ -146,15 +146,6 @@ func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.Patchable
 	return d, i.InstrumentTo(withtests, d, f)
 }
 
-func localize(pkg string) string {
-	if build.IsLocalImport(pkg) {
-		// TODO(elazar): check if `import "./a/../a"` is equivalent to "./a"
-		pkg := filepath.Clean(pkg)
-		return filepath.Join(".", "locals", strings.Replace(pkg, ".", "_", -1))
-	}
-	return filepath.Join("gopath", pkg)
-}
-
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
 func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file *patch.PatchableFile) patch.Patches) error {
