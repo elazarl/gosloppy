@@ -268,7 +268,7 @@ func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.
 					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"./`+rel+`"`))
 				}
 			}
-			file.FprintPatched(outfile, file.File, patches)
+			file.FprintPatched(outfile, file.All(), patches)
 			if err := outfile.Close(); err != nil {
 				return err
 			}

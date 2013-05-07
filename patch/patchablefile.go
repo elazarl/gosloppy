@@ -108,6 +108,31 @@ func (p *PatchableFile) Fprint(w io.Writer, nd ast.Node) (int, error) {
 	return io.WriteString(w, p.Orig[start.Offset:end.Offset])
 }
 
+type nodeSlice struct {
+	pos, end token.Pos
+}
+
+func (n nodeSlice) Pos() token.Pos {
+	return n.pos
+}
+
+func (n nodeSlice) End() token.Pos {
+	return n.end
+}
+
+func (p *PatchableFile) All() ast.Node {
+	pos, end := p.File.Pos(), p.File.End()
+	for _, comment := range p.File.Comments {
+		if pos > comment.Pos() {
+			pos = comment.Pos()
+		}
+		if end < comment.End() {
+			end = comment.End()
+		}
+	}
+	return nodeSlice{pos, end}
+}
+
 type Patches []Patch
 
 type StablePatches struct {
@@ -156,11 +181,6 @@ func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []Patch)
 	}()
 	sorted := sorted(patches)
 	start, end := p.Fset.Position(nd.Pos()), p.Fset.Position(nd.End())
-	// for some reason, the start of an *ast.File is not the initial comment
-	if _, ok := nd.(*ast.File); ok {
-		start = p.Fset.Position(0)
-		end = p.Fset.Position(token.Pos(len(p.Orig) + 1))
-	}
 	prev := start.Offset
 	for _, patch := range sorted {
 		if nd.Pos() <= patch.StartPos() && nd.End() >= patch.StartPos() {

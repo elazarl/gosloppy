@@ -118,7 +118,7 @@ func TestGuessStdlibPkg(t *testing.T) {
 	OrFail(os.Mkdir("temp", 0755), t)
 	defer func() { OrFail(os.RemoveAll("temp"), t) }()
 	err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
-		return patch.Patches{patch.Replace(pf.File, "koko")}
+		return patch.Patches{patch.Replace(pf.All(), "koko")}
 	})
 	OrFail(err, t)
 	dir("temp",

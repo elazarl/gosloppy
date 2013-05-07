@@ -47,7 +47,7 @@ func TestHeaderComment(t *testing.T) {
 	buf := new(bytes.Buffer)
 	body := "//hoho\npackage main"
 	patchable := parse(body, t)
-	patchable.FprintPatched(buf, patchable.File, nil)
+	patchable.FprintPatched(buf, patchable.All(), nil)
 	if buf.String() != body {
 		t.Error("Expected:\n", body, "\nGot:\n", buf.String())
 	}
