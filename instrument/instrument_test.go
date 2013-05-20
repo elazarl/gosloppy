@@ -25,7 +25,7 @@ func TestDir(t *testing.T) {
 	if fmt.Sprint(pkg.Files()) != "[test1/a.go]" {
 		t.Fatal("Expected [a.go] got", pkg.Files())
 	}
-	outdir, err := pkg.Instrument(true, func(pf *patch.PatchableFile) patch.Patches {
+	outdir, _, err := pkg.Instrument(true, func(pf *patch.PatchableFile) patch.Patches {
 		return patch.Patches{patch.Replace(pf.File, "koko")}
 	})
 
@@ -53,7 +53,7 @@ func TestGopath(t *testing.T) {
 	OrFail(err, t)
 	OrFail(os.Mkdir("temp", 0755), t)
 	defer func() { OrFail(os.RemoveAll("temp"), t) }()
-	err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+	_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 		return patch.Patches{patch.Replace(pf.File, "koko")}
 	})
 	OrFail(err, t)
@@ -81,7 +81,7 @@ func TestGuessSubpackage(t *testing.T) {
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -90,6 +90,29 @@ func TestGuessSubpackage(t *testing.T) {
 			file("sub3.go", "koko"),
 		).AssertEqual("temp", t)
 	}()
+}
+
+func TestGetStdlibIfInstructed(t *testing.T) {
+	fs := dir(
+		"test",
+		file("main.go", `package main;import "fmt";func main() {fmt.Println()}`),
+	)
+	OrFail(fs.Build("."), t)
+	defer func() { OrFail(os.RemoveAll("test"), t) }()
+	pkg, err := ImportDir("fmt", "test")
+	pkg.InstrumentGoroot = true
+	OrFail(err, t)
+	defer func() { OrFail(os.RemoveAll("temp"), t) }()
+	_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		return patch.Patches{patch.Replace(pf.All(), "koko")}
+	})
+	OrFail(err, t)
+	dir("temp",
+		dir("goroot", dir("src", dir("pkg",
+			dir("fmt", file("doc.go", "koko")),
+			dir("go", dir("parser"))))), // should be symlinked
+		file("main.go", "koko"),
+	).AssertContains("temp", t)
 }
 
 func TestDontTakeStdLibByDefault(t *testing.T) {
@@ -103,8 +126,8 @@ func TestDontTakeStdLibByDefault(t *testing.T) {
 	OrFail(err, t)
 	OrFail(os.Mkdir("temp", 0755), t)
 	defer func() { OrFail(os.RemoveAll("temp"), t) }()
-	err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
-		return patch.Patches{patch.Replace(pf.File, "koko")}
+	_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		return patch.Patches{patch.Replace(pf.All(), "koko")}
 	})
 	OrFail(err, t)
 	dir("temp",
@@ -117,13 +140,12 @@ func TestGuessStdlibPkg(t *testing.T) {
 	OrFail(err, t)
 	OrFail(os.Mkdir("temp", 0755), t)
 	defer func() { OrFail(os.RemoveAll("temp"), t) }()
-	err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+	_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 		return patch.Patches{patch.Replace(pf.All(), "koko")}
 	})
 	OrFail(err, t)
 	dir("temp",
-		dir("gopath", dir("io", file("io.go", "koko"))),
-		file("ioutil.go", "koko"),
+		dir("goroot", dir("src", dir("pkg", dir("io", dir("ioutil", file("ioutil.go", "koko")))))),
 	).AssertContains("temp", t)
 }
 
@@ -148,7 +170,7 @@ func TestGuessSubpkgGopath(t *testing.T) {
 		OrFail(err, t)
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -176,7 +198,7 @@ func TestSubDir(t *testing.T) {
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return nil
 		})
 		OrFail(err, t)
@@ -196,7 +218,7 @@ func TestSubDir(t *testing.T) {
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -210,7 +232,7 @@ func TestSubDir(t *testing.T) {
 		OrFail(err, t)
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -227,7 +249,7 @@ func TestSubDir(t *testing.T) {
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -258,7 +280,7 @@ func TestGopathSubDir(t *testing.T) {
 		OrFail(err, t)
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -276,7 +298,7 @@ func TestGopathSubDir(t *testing.T) {
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return nil
 		})
 		OrFail(err, t)
@@ -293,7 +315,7 @@ func TestGopathSubDir(t *testing.T) {
 		}
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -306,7 +328,7 @@ func TestGopathSubDir(t *testing.T) {
 		OrFail(err, t)
 		OrFail(os.Mkdir("temp", 0755), t)
 		defer func() { OrFail(os.RemoveAll("temp"), t) }()
-		err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
+		_, err = pkg.InstrumentTo(true, "temp", func(pf *patch.PatchableFile) patch.Patches {
 			return patch.Patches{patch.Replace(pf.File, "koko")}
 		})
 		OrFail(err, t)
@@ -452,6 +474,9 @@ func (fs *Fs) Build(path string) error {
 }
 
 func dir(name string, children ...*Fs) *Fs {
+	if len(children) == 0 {
+		return &Fs{name, "", []*Fs{}} // dir means children == nil
+	}
 	return &Fs{name, "", children}
 }
 

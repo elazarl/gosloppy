@@ -14,9 +14,11 @@ import (
 // Instrumentable is a go package, given either by a GOPATH package or
 // by a specific dir
 type Instrumentable struct {
-	pkg     *build.Package
-	basepkg string
-	name    string
+	pkg              *build.Package
+	basepkg          string
+	name             string
+	InstrumentGoroot bool
+	gorootPkgs       map[string]bool
 }
 
 // Files will give all .go files of a go pacakge
@@ -92,11 +94,11 @@ func Import(basepkg, pkgname string) (*Instrumentable, error) {
 	if basepkg == "" {
 		basepkg = guessBasepkg(pkg.ImportPath)
 	}
-	return &Instrumentable{pkg, basepkg, pkgname}, nil
+	return &Instrumentable{pkg, basepkg, pkgname, false, make(map[string]bool)}, nil
 }
 
 func ImportFiles(basepkg string, files ...string) *Instrumentable {
-	return &Instrumentable{&build.Package{GoFiles: files}, basepkg, ""}
+	return &Instrumentable{&build.Package{GoFiles: files}, basepkg, "", false, make(map[string]bool)}
 }
 
 // ImportDir gives a single instrumentable golang package. See Import.
@@ -105,19 +107,24 @@ func ImportDir(basepkg, pkgname string) (*Instrumentable, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Instrumentable{pkg, basepkg, pkgname}, nil
+	return &Instrumentable{pkg, basepkg, pkgname, false, make(map[string]bool)}, nil
 }
 
 // IsInGopath returns whether the Instrumentable is a package in a standalone directory or in GOPATH
 func (i *Instrumentable) IsInGopath() bool {
-	return i.pkg.ImportPath != "."
+	return i.pkg.ImportPath != "." && !i.pkg.Goroot
 }
 
 // relevantImport will determine whether this import should be instrumented as well
 func (i *Instrumentable) relevantImport(imp string) bool {
-	if i.basepkg == "*" || build.IsLocalImport(imp) {
+	switch {
+	case imp == "C":
+		return false
+	case i.gorootPkgs[imp] && !i.InstrumentGoroot:
+		return false
+	case i.basepkg == "*" || build.IsLocalImport(imp):
 		return true
-	} else if i.IsInGopath() || i.basepkg != "" {
+	case i.IsInGopath() || i.basepkg != "":
 		return filepath.HasPrefix(imp, i.basepkg) || filepath.HasPrefix(i.basepkg, imp)
 	}
 	return false
@@ -133,23 +140,36 @@ func (i *Instrumentable) doimport(pkg string) (*Instrumentable, error) {
 		return r, err
 	}
 	r.name = i.name
+	r.gorootPkgs = i.gorootPkgs
+	r.InstrumentGoroot = i.InstrumentGoroot
 	return r, nil
 }
 
 var tempStem = "__instrument.go"
 
-func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, err error) {
+func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.PatchableFile) patch.Patches) (pkgdir string, hasGoroot bool, err error) {
 	d, err := ioutil.TempDir(os.TempDir(), tempStem)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return d, i.InstrumentTo(withtests, d, f)
+	hasGoroot, err = i.InstrumentTo(withtests, d, f)
+	return d, hasGoroot, err
 }
 
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
-func (i *Instrumentable) InstrumentTo(withtests bool, outdir string, f func(file *patch.PatchableFile) patch.Patches) error {
-	return i.instrumentTo(map[string]bool{}, withtests, outdir, "", f)
+func (i *Instrumentable) InstrumentTo(withtests bool, outdir string,
+	f func(file *patch.PatchableFile) patch.Patches) (hasGoroot bool, err error) {
+	if err := i.instrumentTo(map[string]bool{}, withtests, outdir, "", f); err != nil {
+		return false, err
+	}
+	hasGoroot = len(i.gorootPkgs) > 0 && i.InstrumentGoroot
+	if hasGoroot {
+		if err := symlinkGoroot(filepath.Join(outdir, "goroot")); err != nil {
+			return false, err
+		}
+	}
+	return hasGoroot, nil
 }
 
 func (i *Instrumentable) instrumentTo(processed map[string]bool, istest bool, outdir, relpath string, f func(file *patch.PatchableFile) patch.Patches) error {
@@ -157,19 +177,22 @@ func (i *Instrumentable) instrumentTo(processed map[string]bool, istest bool, ou
 		return nil
 	}
 	processed[i.pkg.ImportPath] = true
-	for _, imps := range [][]string{i.pkg.Imports, i.pkg.TestImports, i.pkg.XTestImports} {
-		for _, imp := range imps {
-			if i.relevantImport(imp) {
-				pkg, err := i.doimport(imp)
-				if err != nil {
-					return err
-				}
-				if build.IsLocalImport(imp) {
-					imp = "./" + filepath.Join(relpath, imp)
-				}
-				if err := pkg.instrumentTo(processed, false, outdir, imp, f); err != nil {
-					return err
-				}
+	imps := i.pkg.Imports
+	if istest {
+		imps = append(imps, i.pkg.TestImports...)
+		imps = append(imps, i.pkg.XTestImports...)
+	}
+	for _, imp := range imps {
+		if i.relevantImport(imp) {
+			pkg, err := i.doimport(imp)
+			if err != nil {
+				return err
+			}
+			if build.IsLocalImport(imp) {
+				imp = "./" + filepath.Join(relpath, imp)
+			}
+			if err := pkg.instrumentTo(processed, false, outdir, imp, f); err != nil {
+				return err
 			}
 		}
 	}
@@ -222,13 +245,16 @@ func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.
 	if build.IsLocalImport(relpath) {
 		path = strings.Replace(relpath, "..", "__", -1)
 		path = filepath.Join("locals", path)
+	} else if i.pkg.Goroot {
+		path = filepath.Join("goroot", "src", "pkg", i.pkg.ImportPath)
+		i.gorootPkgs[i.pkg.ImportPath] = true
 	} else if relpath != "" {
 		path = filepath.Join("gopath", i.pkg.ImportPath)
 	}
 	if err := os.MkdirAll(filepath.Join(outdir, path), 0755); err != nil {
 		return err
 	}
-	// copy all none-go files
+	// copy all none-go files (TODO: symlink? OTOH you wouldn't have standalone package)
 	for _, files := range [][]string{i.pkg.CFiles, i.pkg.HFiles, i.pkg.SFiles, i.pkg.SysoFiles} {
 		for _, file := range files {
 			if err := cp(filepath.Join(outdir, path, file), filepath.Join(i.pkg.Dir, file)); err != nil {
@@ -247,7 +273,7 @@ func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.
 				switch v := imp.Path.Value[1 : len(imp.Path.Value)-1]; {
 				case v == i.pkg.ImportPath:
 					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"."`))
-				case !i.relevantImport(v):
+				case !i.relevantImport(v) || i.gorootPkgs[v]:
 					continue
 				case build.IsLocalImport(v):
 					rel, err := filepath.Rel(path, filepath.Join("locals", v))

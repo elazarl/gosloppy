@@ -17,6 +17,7 @@ import (
 //     $ go run foo.go # equiv GoCmd{"go", "run", "foo.go", []string{}}
 //     $ go test -test.run 'A.*' # equiv GoCmd{"go", "test", "", []string{"-test.run", "A.*"}}
 type GoCmd struct {
+	Env        map[string]string
 	WorkDir    string
 	Executable string
 	Command    string
@@ -124,7 +125,7 @@ func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*
 	default:
 		return nil, errors.New("Currently only build run and test commands supported")
 	}
-	return &GoCmd{workdir, args[0], args[1], FromFlagSet(flagset), params, extra}, nil
+	return &GoCmd{make(map[string]string), workdir, args[0], args[1], FromFlagSet(flagset), params, extra}, nil
 }
 
 func (cmd *GoCmd) Args() []string {
@@ -191,7 +192,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}
-	return &GoCmd{newdir, cmd.Executable, cmd.Command, buildflags, cmd.Params, cmd.ExtraFlags}, nil
+	return &GoCmd{make(map[string]string), newdir, cmd.Executable, cmd.Command, buildflags, cmd.Params, cmd.ExtraFlags}, nil
 }
 
 func (cmd *GoCmd) Runnable() *exec.Cmd {
@@ -200,5 +201,17 @@ func (cmd *GoCmd) Runnable() *exec.Cmd {
 	r.Stdin = os.Stdin
 	r.Stdout = os.Stdout
 	r.Stderr = os.Stderr
+	// environment inherits parent process environment, cancel environment variable with empty string
+	if len(cmd.Env) > 0 {
+		for _, env := range os.Environ() {
+			kv := strings.SplitN(env, "=", 2)
+			if _, ok := cmd.Env[kv[0]]; !ok {
+				r.Env = append(r.Env, env)
+			}
+		}
+		for k, v := range cmd.Env {
+			r.Env = append(r.Env, k+"="+v)
+		}
+	}
 	return r
 }

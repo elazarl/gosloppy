@@ -141,6 +141,7 @@ func main() {
 	}()
 	f := flag.NewFlagSet("", flag.ContinueOnError)
 	basedir := f.String("basedir", "", "instrument all packages decendant f basedir")
+	goroot := f.Bool("goroot", false, "Should I instrument packages in $GOROOT/src/pkg? (can take time)")
 	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
 	die(err)
 	var pkg *instrument.Instrumentable
@@ -175,10 +176,9 @@ func main() {
 		pkg, err = instrument.Import(*basedir, gocmd.Params[0])
 	}
 	die(err)
-	shorterror := &ShortError{}
-	outdir, err := pkg.Instrument(gocmd.Command == "test", func(p *patch.PatchableFile) patch.Patches {
+	pkg.InstrumentGoroot = *goroot
+	outdir, hasGoroot, err := pkg.Instrument(gocmd.Command == "test", func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
-		shorterror.SetFile(p)
 		autoimport := NewAutoImporter(p.File)
 		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport), p.File)
 		return append(patches.patches, autoimport.Patches...)
@@ -196,6 +196,9 @@ func main() {
 	die(err)
 	newgocmd, err := gocmd.Retarget(outdir)
 	die(err)
+	if hasGoroot && *goroot {
+		newgocmd.Env["GOROOT"] = "goroot"
+	}
 	newgocmd.Executable = "go"
 	// TODO(elazarl): Support build gofile.go gofile2.go
 	if newgocmd.Command != "run" {
