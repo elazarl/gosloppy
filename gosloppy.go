@@ -1,14 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"go/ast"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/elazarl/gosloppy/instrument"
 	"github.com/elazarl/gosloppy/patch"
@@ -139,108 +135,14 @@ func main() {
 			}
 		}
 	}()
-	f := flag.NewFlagSet("", flag.ContinueOnError)
-	basedir := f.String("basedir", "", "instrument all packages decendant f basedir")
-	goroot := f.Bool("goroot", false, "Should I instrument packages in $GOROOT/src/pkg? (can take time)")
-	gocmd, err := instrument.NewGoCmdWithFlags(f, ".", os.Args...)
-	die(err)
-	var pkg *instrument.Instrumentable
-	if gocmd.Command == "run" {
-		pkg = instrument.ImportFiles(*basedir, gocmd.Params...)
-	} else if len(gocmd.Params) == 0 {
-		wd, err := os.Getwd()
-		if err != nil {
-			panic(exitCode(2))
-		}
-		for _, path := range filepath.SplitList(os.Getenv("GOPATH")) {
-			path = filepath.Join(path, "src")
-			if strings.Contains(wd, path) {
-				rel, err := filepath.Rel(path, wd)
-				die(err)
-				pkg, err = instrument.Import(*basedir, rel)
-				die(err)
-				break
-			}
-		}
-		path := filepath.Join(os.Getenv("GOROOT"), "src", "pkg")
-		if strings.Contains(wd, path) {
-			rel, err := filepath.Rel(path, wd)
-			die(err)
-			pkg, err = instrument.Import(*basedir, rel)
-			die(err)
-		}
-		if pkg == nil {
-			pkg, err = instrument.ImportDir(*basedir, ".")
-		}
-	} else {
-		pkg, err = instrument.Import(*basedir, gocmd.Params[0])
-	}
-	die(err)
-	pkg.InstrumentGoroot = *goroot
-	outdir, hasGoroot, err := pkg.Instrument(gocmd.Command == "test", func(p *patch.PatchableFile) patch.Patches {
+	f := func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
 		autoimport := NewAutoImporter(p.File)
 		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport), p.File)
 		return append(patches.patches, autoimport.Patches...)
-	})
-	if gocmd.BuildFlags["work"] == "true" {
-		log.Println("Instrumenting to", outdir)
 	}
-	defer func() {
-		if gocmd.BuildFlags["work"] != "true" {
-			if err := os.RemoveAll(outdir); err != nil {
-				log.Println("Cannot remove temporary dir", outdir, err)
-			}
-		}
-	}()
-	die(err)
-	newgocmd, err := gocmd.Retarget(outdir)
-	die(err)
-	if hasGoroot && *goroot {
-		newgocmd.Env["GOROOT"] = "goroot"
-	}
-	newgocmd.Executable = "go"
-	// TODO(elazarl): Support build gofile.go gofile2.go
-	if newgocmd.Command != "run" {
-		newgocmd.Params = nil
-	}
-	if f.Lookup("x").Value.String() == "true" {
-		log.Println("In:", newgocmd.WorkDir)
-		log.Println("Executing:", newgocmd)
-	}
-	// TODO(elazarl): hackish, find better way
-	delete(newgocmd.BuildFlags, "basedir")
-	minusC := newgocmd.BuildFlags["c"] != ""
-	if newgocmd.Command == "test" {
-		newgocmd.BuildFlags["c"] = "true"
-	}
-	die(newgocmd.Runnable().Run())
-	if newgocmd.Command == "test" {
-		_, _, err := newgocmd.OutputFileName()
-		if err != nil {
-			panic("Cannot find package name, not producing test executable")
-		}
-		oldname, _, err := gocmd.OutputFileName()
-		if err != nil {
-			panic("Cannot find package name, not producing test executable")
-		}
-		// output name is unclear: http://code.google.com/p/go/issues/detail?id=5230
-		testoutput := filepath.Join(outdir, filepath.Base(outdir)+".test")
-		if minusC {
-			die(os.Rename(testoutput, oldname+".test"))
-		} else {
-			defer os.Remove(testoutput)
-			r := exec.Command(testoutput, newgocmd.ExtraFlags...)
-			r.Dir = gocmd.WorkDir
-			r.Stdin = os.Stdin
-			r.Stdout = os.Stdout
-			r.Stderr = os.Stderr
-			err := r.Run()
-			if err, ok := err.(*exec.ExitError); ok {
-				_ = err // TODO(elazar): pry from Go the actual exit code
-				panic(exitCode(-1))
-			}
-			die(err)
-		}
+	if err := instrument.InstrumentCmd(f, os.Args...); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
 	}
 }
