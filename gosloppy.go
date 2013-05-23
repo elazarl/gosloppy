@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"os"
-	"path/filepath"
 
 	"github.com/elazarl/gosloppy/instrument"
 	"github.com/elazarl/gosloppy/patch"
@@ -108,33 +107,11 @@ build a binary:
 gosloppy build <go build switches>`)
 }
 
-type exitCode int
-
-func die(err error) {
-	if err != nil {
-		os.Stderr.WriteString(err.Error() + "\n")
-		panic(exitCode(-1))
-	}
-}
-
-func mvToDir(srcdir, file, dstdir string) error {
-	return os.Rename(filepath.Join(srcdir, file), filepath.Join(dstdir, file))
-}
-
 func main() {
 	if len(os.Args) == 1 {
 		usage()
 		return
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			if p, ok := p.(exitCode); ok {
-				os.Exit(int(p))
-			} else {
-				panic(p)
-			}
-		}
-	}()
 	f := func(p *patch.PatchableFile) patch.Patches {
 		patches := &patchUnused{patch.Patches{}}
 		autoimport := NewAutoImporter(p.File)
