@@ -1,4 +1,4 @@
-package main
+package scopes
 
 import (
 	"fmt"
@@ -7,16 +7,16 @@ import (
 	"log"
 )
 
-type ScopeVisitor interface {
-	VisitExpr(scope *ast.Scope, expr ast.Expr) (w ScopeVisitor)
-	VisitStmt(scope *ast.Scope, stmt ast.Stmt) (w ScopeVisitor)
-	VisitDecl(scope *ast.Scope, stmt ast.Decl) (w ScopeVisitor)
+type Visitor interface {
+	VisitExpr(scope *ast.Scope, expr ast.Expr) (w Visitor)
+	VisitStmt(scope *ast.Scope, stmt ast.Stmt) (w Visitor)
+	VisitDecl(scope *ast.Scope, stmt ast.Decl) (w Visitor)
 	// TODO(elazar): rethink the API, we probably want to give here a list of scopes
-	ExitScope(scope *ast.Scope, parent ast.Node, last bool) (w ScopeVisitor)
+	ExitScope(scope *ast.Scope, parent ast.Node, last bool) (w Visitor)
 }
 
 // We traverse types, since we need them to determine if import is used
-func WalkFields(v ScopeVisitor, fields []*ast.Field, scope *ast.Scope) {
+func WalkFields(v Visitor, fields []*ast.Field, scope *ast.Scope) {
 	for _, field := range fields {
 		for _, name := range field.Names {
 			insertToScope(scope, name.Obj)
@@ -25,7 +25,7 @@ func WalkFields(v ScopeVisitor, fields []*ast.Field, scope *ast.Scope) {
 	}
 }
 
-func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
+func WalkExpr(v Visitor, expr ast.Expr, scope *ast.Scope) {
 	if v = v.VisitExpr(scope, expr); v == nil {
 		return
 	}
@@ -128,7 +128,7 @@ func WalkExpr(v ScopeVisitor, expr ast.Expr, scope *ast.Scope) {
 	}
 }
 
-func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
+func WalkStmt(v Visitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
 	newscope = scope
 	if v = v.VisitStmt(scope, stmt); v == nil {
 		return
@@ -294,7 +294,7 @@ func WalkStmt(v ScopeVisitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Sc
 	return
 }
 
-func exitScopes(v ScopeVisitor, inner, limit *ast.Scope, parent ast.Stmt) {
+func exitScopes(v Visitor, inner, limit *ast.Scope, parent ast.Stmt) {
 	for inner != limit {
 		if inner == nil {
 			panic("exitScopes must be bounded")
@@ -304,7 +304,7 @@ func exitScopes(v ScopeVisitor, inner, limit *ast.Scope, parent ast.Stmt) {
 	}
 }
 
-func WalkFile(v ScopeVisitor, file *ast.File) {
+func WalkFile(v Visitor, file *ast.File) {
 	if v == nil {
 		return
 	}

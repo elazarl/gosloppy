@@ -1,17 +1,19 @@
-package main
+package visitors
 
 import (
 	"fmt"
 	"go/ast"
 	"testing"
+
+	"github.com/elazarl/gosloppy/scopes"
 )
 
 type vis int
 
-func (v vis) ExitScope(*ast.Scope, ast.Node, bool) ScopeVisitor { return v }
-func (v vis) VisitExpr(*ast.Scope, ast.Expr) ScopeVisitor       { return v }
-func (v vis) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor       { return v }
-func (v vis) VisitDecl(*ast.Scope, ast.Decl) ScopeVisitor       { return v }
+func (v vis) ExitScope(*ast.Scope, ast.Node, bool) scopes.Visitor { return v }
+func (v vis) VisitExpr(*ast.Scope, ast.Expr) scopes.Visitor       { return v }
+func (v vis) VisitStmt(*ast.Scope, ast.Stmt) scopes.Visitor       { return v }
+func (v vis) VisitDecl(*ast.Scope, ast.Decl) scopes.Visitor       { return v }
 
 func expect(t *testing.T, vs *cow, expected ...int) {
 	intvisitor := []int{}

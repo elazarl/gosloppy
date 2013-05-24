@@ -1,4 +1,4 @@
-package main
+package visitors
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/elazarl/gosloppy/patch"
+	"github.com/elazarl/gosloppy/scopes"
 )
 
 type ShortError struct {
@@ -36,7 +37,7 @@ func (v *ShortError) Patches() patch.Patches {
 func (v *ShortError) tempVar(stem string, scope *ast.Scope) string {
 	for ; v.tmpvar < 10*1000; v.tmpvar++ {
 		name := fmt.Sprint(stem, v.tmpvar)
-		if Lookup(scope, name) == nil {
+		if scopes.Lookup(scope, name) == nil {
 			v.tmpvar++
 			return name
 		}
@@ -65,7 +66,7 @@ func (v *ShortError) addToInit(txt string) {
 	*v.initTxt = append(*v.initTxt, txt...)
 }
 
-func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) scopes.Visitor {
 	if expr, ok := expr.(*ast.CallExpr); ok {
 		if fun, ok := expr.Fun.(*ast.Ident); ok && fun.Name == MustKeyword {
 			if len(expr.Args) != 1 {
@@ -92,7 +93,7 @@ func (v *ShortError) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
-func (v *ShortError) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
+func (v *ShortError) VisitDecl(scope *ast.Scope, decl ast.Decl) scopes.Visitor {
 	if decl, ok := decl.(*ast.GenDecl); ok {
 		for _, spec := range decl.Specs {
 			// We'll act only in cases like top level `var a, b, c = must(expr)`
@@ -130,7 +131,7 @@ func calltomust(expr ast.Expr) *ast.CallExpr {
 	return nil
 }
 
-func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) scopes.Visitor {
 	v.stmt = stmt
 	switch stmt := stmt.(type) {
 	case *ast.BlockStmt:
@@ -186,7 +187,7 @@ func (v *ShortError) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return v
 }
 
-func (v *ShortError) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (v *ShortError) ExitScope(scope *ast.Scope, node ast.Node, last bool) scopes.Visitor {
 	if node, ok := node.(*ast.File); ok && len(*v.initTxt) > 0 {
 		if init := findinit(node); init != nil {
 			*v.patches = append(*v.patches, patch.Insert(init.Body.Lbrace+1, string(*v.initTxt)))

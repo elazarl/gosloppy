@@ -1,4 +1,8 @@
-package main
+package visitors
+
+import (
+	"github.com/elazarl/gosloppy/scopes"
+)
 
 // This is a functional-like data structure of copy-on-write array
 // When an element of the array is set, a new array is allocated and there this element is changed.
@@ -9,28 +13,28 @@ package main
 //     // b = [1 5 3]
 
 type cow struct {
-	ar       []ScopeVisitor
-	children map[int]map[ScopeVisitor]*cow
+	ar       []scopes.Visitor
+	children map[int]map[scopes.Visitor]*cow
 }
 
-func newCow(v ...ScopeVisitor) *cow {
-	return &cow{v, make(map[int]map[ScopeVisitor]*cow)}
+func newCow(v ...scopes.Visitor) *cow {
+	return &cow{v, make(map[int]map[scopes.Visitor]*cow)}
 }
 
-func (a *cow) Set(i int, v ScopeVisitor) *cow {
+func (a *cow) Set(i int, v scopes.Visitor) *cow {
 	if a.ar[i] == v {
 		return a
 	}
 	m, ok := a.children[i]
 	if !ok {
-		m = make(map[ScopeVisitor]*cow)
+		m = make(map[scopes.Visitor]*cow)
 		a.children[i] = m
 	}
 	c, ok := m[v]
 	if ok {
 		return c
 	}
-	copyar := make([]ScopeVisitor, len(a.ar))
+	copyar := make([]scopes.Visitor, len(a.ar))
 	copy(copyar, a.ar)
 	copyar[i] = v
 	child := newCow(copyar...)

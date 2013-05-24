@@ -1,0 +1,5 @@
+#!/bin/bash
+for i in $(find . -maxdepth 1 -mindepth 1 -type d -and -not -name .\* -and -not -name test); do
+	(cd $i; go test) || exit -1
+done
+(cd test; ./all.test) || exit -1

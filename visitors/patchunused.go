@@ -1,4 +1,4 @@
-package main
+package visitors
 
 import (
 	"go/ast"
@@ -6,8 +6,8 @@ import (
 	"github.com/elazarl/gosloppy/patch"
 )
 
-type patchUnused struct {
-	patches patch.Patches
+type PatchUnused struct {
+	Patches patch.Patches
 }
 
 // TL;DR compareAssgn(x,y) should implement internalInterfacePointer(x) == internalInterfacePointer(y)
@@ -38,8 +38,8 @@ func compareAssgn(lhs interface{}, rhs ast.Stmt) bool {
 	return false
 }
 
-func (p *patchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
-	// if the unused variable is a function argument, or TLD - ignore
+func (p *PatchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
+	// iP the unused variable is a function argument, or TLD - ignore
 	switch obj.Decl.(type) {
 	case *ast.Field, *ast.GenDecl, *ast.TypeSpec:
 		return
@@ -54,44 +54,44 @@ func (p *patchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
 	exempter := "_ = " + obj.Name
 	switch parent := parent.(type) {
 	case *ast.ForStmt:
-		p.patches = append(p.patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
+		p.Patches = append(p.Patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
 	case *ast.RangeStmt:
-		p.patches = append(p.patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
+		p.Patches = append(p.Patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
 	case *ast.TypeSwitchStmt:
 		if len(parent.Body.List) == 0 {
-			p.patches = append(p.patches, patch.Insert(parent.Body.Lbrace+1, "default: "+exempter))
+			p.Patches = append(p.Patches, patch.Insert(parent.Body.Lbrace+1, "default: "+exempter))
 		} else {
 			// if first statement is not case statement - it won't compile anyhow
 			if stmt, ok := parent.Body.List[0].(*ast.CaseClause); ok {
-				p.patches = append(p.patches, patch.Insert(stmt.Colon+1, exempter+";"))
+				p.Patches = append(p.Patches, patch.Insert(stmt.Colon+1, exempter+";"))
 			}
 		}
 	case *ast.SwitchStmt:
 		if len(parent.Body.List) == 0 {
-			p.patches = append(p.patches, patch.Insert(parent.Body.Lbrace+1, "default: "+exempter))
+			p.Patches = append(p.Patches, patch.Insert(parent.Body.Lbrace+1, "default: "+exempter))
 		} else {
 			// if first statement is not case statement - it won't compile anyhow
 			if stmt, ok := parent.Body.List[0].(*ast.CaseClause); ok {
-				p.patches = append(p.patches, patch.Insert(stmt.Colon+1, exempter+";"))
+				p.Patches = append(p.Patches, patch.Insert(stmt.Colon+1, exempter+";"))
 			}
 		}
 	case *ast.CommClause:
 		if compareAssgn(obj.Decl, parent.Comm) {
-			p.patches = append(p.patches, patch.Insert(parent.Colon+1, exempter+";"))
+			p.Patches = append(p.Patches, patch.Insert(parent.Colon+1, exempter+";"))
 		} else {
-			p.patches = append(p.patches, patch.Insert(obj.Decl.(ast.Node).End(), ";"+exempter))
+			p.Patches = append(p.Patches, patch.Insert(obj.Decl.(ast.Node).End(), ";"+exempter))
 		}
 	case *ast.IfStmt:
-		p.patches = append(p.patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
+		p.Patches = append(p.Patches, patch.Insert(parent.Body.Lbrace+1, exempter+";"))
 	default:
-		p.patches = append(p.patches, patch.Insert(obj.Decl.(ast.Node).End(), ";"+exempter))
+		p.Patches = append(p.Patches, patch.Insert(obj.Decl.(ast.Node).End(), ";"+exempter))
 	}
 }
 
-func (p *patchUnused) UnusedImport(imp *ast.ImportSpec) {
+func (p *PatchUnused) UnusedImport(imp *ast.ImportSpec) {
 	if imp.Name != nil {
-		p.patches = append(p.patches, patch.Replace(imp.Name, "_"))
+		p.Patches = append(p.Patches, patch.Replace(imp.Name, "_"))
 	} else {
-		p.patches = append(p.patches, patch.Insert(imp.Pos(), "_ "))
+		p.Patches = append(p.Patches, patch.Insert(imp.Pos(), "_ "))
 	}
 }

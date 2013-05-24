@@ -1,4 +1,4 @@
-package main
+package scopes
 
 import (
 	"bytes"
@@ -50,22 +50,22 @@ func (v VerifyVisitor) verify(n ast.Node) {
 	}
 }
 
-func (v VerifyVisitor) VisitDecl(scope *ast.Scope, expr ast.Decl) ScopeVisitor {
+func (v VerifyVisitor) VisitDecl(scope *ast.Scope, expr ast.Decl) Visitor {
 	// v.verify(expr) TODO(elazar): make sure it works as well
 	return v
 }
 
-func (v VerifyVisitor) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {
+func (v VerifyVisitor) VisitStmt(scope *ast.Scope, expr ast.Stmt) Visitor {
 	v.verify(expr)
 	return v
 }
 
-func (v VerifyVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v VerifyVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) Visitor {
 	v.verify(expr)
 	return v
 }
 
-func (v VerifyVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (v VerifyVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) Visitor {
 	return v
 }
 
@@ -110,7 +110,7 @@ func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
 
 type BrothersTest testing.T
 
-func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) Visitor {
 	prefix := "inscope_"
 	if ident, ok := expr.(*ast.Ident); ok && strings.HasPrefix(ident.Name, prefix) {
 		brothers := strings.Split(ident.Name[len(prefix):], "_")
@@ -122,25 +122,25 @@ func (t *BrothersTest) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return t
 }
 
-func (t *BrothersTest) VisitDecl(scope *ast.Scope, stmt ast.Decl) ScopeVisitor {
+func (t *BrothersTest) VisitDecl(scope *ast.Scope, stmt ast.Decl) Visitor {
 	return t
 }
 
-func (t *BrothersTest) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+func (t *BrothersTest) VisitStmt(scope *ast.Scope, stmt ast.Stmt) Visitor {
 	return t
 }
 
-func (t *BrothersTest) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (t *BrothersTest) ExitScope(scope *ast.Scope, node ast.Node, last bool) Visitor {
 	return t
 }
 
 var VisitorScopeTestCases = []string{
-	`package main
+	`package scopes
 func f() {
 	inscope_ = 1
 }
 `,
-	`package main
+	`package scopes
 func f() {
 	a := 1
 	inscope_a = 1
@@ -160,7 +160,7 @@ func TestSimpleVisitor(t *testing.T) {
 	setT(t)
 	for _, c := range simpleVisitorTestCases {
 		file, _ := parse(`
-		package main
+		package scopes
 		func f() {
 	            `+c.body+`
 		}`, t)
@@ -197,19 +197,19 @@ func scopeNames(scope *ast.Scope) (names []string) {
 	return
 }
 
-func (v *VerifyExitScope) VisitDecl(scope *ast.Scope, expr ast.Decl) ScopeVisitor {
+func (v *VerifyExitScope) VisitDecl(scope *ast.Scope, expr ast.Decl) Visitor {
 	return v
 }
 
-func (v *VerifyExitScope) VisitStmt(scope *ast.Scope, expr ast.Stmt) ScopeVisitor {
+func (v *VerifyExitScope) VisitStmt(scope *ast.Scope, expr ast.Stmt) Visitor {
 	return v
 }
 
-func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v *VerifyExitScope) VisitExpr(scope *ast.Scope, expr ast.Expr) Visitor {
 	return v
 }
 
-func (v *VerifyExitScope) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (v *VerifyExitScope) ExitScope(scope *ast.Scope, node ast.Node, last bool) Visitor {
 	expected := v.pop()
 	if fmt.Sprint(expected) != fmt.Sprint(scopeNames(scope)) {
 		v.t.Error("Expected", append(v.v, expected), "got", scopeNames(scope), "test case", v.ix)
@@ -234,14 +234,14 @@ var ScopeOrderTestCases = []struct {
 	scopes [][]string
 }{
 	{`
-		package main
+		package scopes
 		func f(a int) {
 		}
 	`,
 		[][]string{{"f"}, {"a"}, {}},
 	},
 	{`
-		package main
+		package scopes
 		func f(a int) {
 			{
 			}
@@ -250,7 +250,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"a"}, {}, {}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funcscope int) {
 			type T int
 		}
@@ -258,7 +258,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funcscope"}, {}, {"T"}},
 	},
 	{`
-		package main
+		package scopes
 		/* empty scope of func's arguments */
 		func f() {
 			/* empty block scope */
@@ -268,7 +268,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {}, {}, {"x", "y"}},
 	},
 	{`
-		package main
+		package scopes
 		/* empty scope of func's arguments */
 		func f() {
 			/* empty block scope */
@@ -279,7 +279,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {}, {}, {"x", "y"}},
 	},
 	{`
-		package main
+		package scopes
 		func f() {
 			var (
 				x int
@@ -291,7 +291,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {}, {}, {"x"}, {"y"}},
 	},
 	{`
-		package main
+		package scopes
 		func f() {
 			a, b := 1, 2
 		}
@@ -299,7 +299,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {}, {}, {"a", "b"}},
 	},
 	{`
-		package main
+		package scopes
 		func f() {
 			a := 1
 			b := 1
@@ -308,7 +308,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {}, {}, {"a"}, {"b"}},
 	},
 	{`
-		package main
+		package scopes
 		/* empty func scope */
 		func f() {
 			/* emtpy block */
@@ -320,7 +320,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {}, {}, {}},
 	},
 	{`
-		package main
+		package scopes
 		/* empty func scope */
 		func f(funscope int) {
 			/* emtpy block */
@@ -333,7 +333,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {}, {"a"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			if ifscope := 1; a == 1 {
 				/* emtpy block */
@@ -344,7 +344,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"x"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			if ifscope := 1; a == 1 {
 				x := 1
@@ -357,7 +357,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {"ifscope"}, {}, {"elsescope"}, {}, {"x"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			if ifscope := 1; a == 1 {
 				x := 1
@@ -370,7 +370,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {"ifscope"}, {"nestedifscope"}, {}, {"elsescope"}, {}, {"x"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			for 1 == 1 {
@@ -382,7 +382,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {}, {"forscope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			for i := 1; 1 == 1; {
@@ -394,7 +394,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {"i"}, {}, {"forscope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			for k, v := range m {
@@ -406,7 +406,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {"k", "v"}, {}, {"forscope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			for k, v = range m {
@@ -418,7 +418,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {}, {"forscope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			switch a, b := f(); a {
@@ -432,7 +432,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, {}, {"a", "b"}, {}, {}, {"switchscope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			switch a, b := f(); a := a.(type) {
@@ -452,7 +452,7 @@ var ScopeOrderTestCases = []struct {
 			{ /* case int */}, {"switchscope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			/* empty stmt block */
 			select {
@@ -468,7 +468,7 @@ var ScopeOrderTestCases = []struct {
 			{"i" /* case block stmt*/}, {"casescope"}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			a = func(funclit int) {
 				infunclit := 1
@@ -478,7 +478,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{"f"}, {"funscope"}, { /* func block stmt */}, {"funclit"}, { /* funclit body*/}, {"infunclit"}},
 	},
 	{`
-		package main
+		package scopes
 		func init() {
 			var _ = 1
 		}
@@ -486,7 +486,7 @@ var ScopeOrderTestCases = []struct {
 		[][]string{{}},
 	},
 	{`
-		package main
+		package scopes
 		func f(funscope int) {
 			init := func(funclitscope int) {}
 		}

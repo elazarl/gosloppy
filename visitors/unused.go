@@ -1,9 +1,10 @@
-package main
+package visitors
 
 import (
 	"go/ast"
 
 	"github.com/elazarl/gosloppy/imports"
+	"github.com/elazarl/gosloppy/scopes"
 )
 
 type Visitor interface {
@@ -26,21 +27,21 @@ type UnusedVisitor struct {
 	Visitor     Visitor
 }
 
-func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) ScopeVisitor {
+func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) scopes.Visitor {
 	return v
 }
 
-func (v *UnusedVisitor) VisitDecl(*ast.Scope, ast.Decl) ScopeVisitor {
+func (v *UnusedVisitor) VisitDecl(*ast.Scope, ast.Decl) scopes.Visitor {
 	return v
 }
 
-func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) scopes.Visitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
 		if v.Irrelevant[expr] {
 			return v
 		}
-		if def := Lookup(scope, expr.Name); def != nil {
+		if def := scopes.Lookup(scope, expr.Name); def != nil {
 			v.Used[def] = true
 		} else {
 			v.UsedImports[expr.Name] = true
@@ -56,7 +57,7 @@ func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor 
 	return v
 }
 
-func (v *UnusedVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (v *UnusedVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) scopes.Visitor {
 	for _, obj := range scope.Objects {
 		if !v.Used[obj] {
 			v.Visitor.UnusedObj(obj, node)

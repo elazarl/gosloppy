@@ -1,14 +1,16 @@
-package main
+package visitors
 
 import (
 	"go/ast"
+
+	"github.com/elazarl/gosloppy/scopes"
 )
 
 type MultiVisitor struct {
 	*cow
 }
 
-func NewMultiVisitor(v ...ScopeVisitor) MultiVisitor {
+func NewMultiVisitor(v ...scopes.Visitor) MultiVisitor {
 	return MultiVisitor{newCow(v...)}
 }
 
@@ -21,7 +23,7 @@ func (v MultiVisitor) AllNil() bool {
 	return true
 }
 
-func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
+func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) scopes.Visitor {
 	for i, w := range v.ar {
 		if w == nil {
 			continue
@@ -34,7 +36,7 @@ func (v MultiVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) ScopeVisitor {
 	return v
 }
 
-func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
+func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) scopes.Visitor {
 	for i, w := range v.ar {
 		if w == nil {
 			continue
@@ -47,7 +49,7 @@ func (v MultiVisitor) VisitStmt(scope *ast.Scope, stmt ast.Stmt) ScopeVisitor {
 	return v
 }
 
-func (v MultiVisitor) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
+func (v MultiVisitor) VisitDecl(scope *ast.Scope, decl ast.Decl) scopes.Visitor {
 	for i, w := range v.ar {
 		if w == nil {
 			continue
@@ -60,7 +62,7 @@ func (v MultiVisitor) VisitDecl(scope *ast.Scope, decl ast.Decl) ScopeVisitor {
 	return v
 }
 
-func (v MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) ScopeVisitor {
+func (v MultiVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) scopes.Visitor {
 	for i, w := range v.ar {
 		if w == nil {
 			continue

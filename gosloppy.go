@@ -6,6 +6,8 @@ import (
 
 	"github.com/elazarl/gosloppy/instrument"
 	"github.com/elazarl/gosloppy/patch"
+	"github.com/elazarl/gosloppy/scopes"
+	"github.com/elazarl/gosloppy/visitors"
 )
 
 func usage() {
@@ -22,10 +24,10 @@ func main() {
 		return
 	}
 	f := func(p *patch.PatchableFile) patch.Patches {
-		patches := &patchUnused{patch.Patches{}}
-		autoimport := NewAutoImporter(p.File)
-		WalkFile(NewMultiVisitor(NewUnusedVisitor(patches), autoimport), p.File)
-		return append(patches.patches, autoimport.Patches...)
+		patches := &visitors.PatchUnused{patch.Patches{}}
+		autoimport := visitors.NewAutoImporter(p.File)
+		scopes.WalkFile(visitors.NewMultiVisitor(visitors.NewUnusedVisitor(patches), autoimport), p.File)
+		return append(patches.Patches, autoimport.Patches...)
 	}
 	if err := instrument.InstrumentCmd(f, os.Args...); err != nil {
 		fmt.Println(err)

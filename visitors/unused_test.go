@@ -1,11 +1,24 @@
-package main
+package visitors
 
 import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
+
+	"github.com/elazarl/gosloppy/scopes"
 )
+
+func parse(code string, t *testing.T) (*ast.File, *token.FileSet) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", code, parser.DeclarationErrors)
+	if err != nil {
+		t.Fatal("Cannot parse code", err)
+	}
+	return file, fset
+}
 
 func equal(a, b []string) {
 }
@@ -35,7 +48,7 @@ func TestSimpleUnused(t *testing.T) {
 		}
 		file, _ := parse(c.body, t)
 		unused := []string{}
-		WalkFile(NewUnusedVisitor(unusedNames(func(name string) {
+		scopes.WalkFile(NewUnusedVisitor(unusedNames(func(name string) {
 			unused = append(unused, name)
 		})), file)
 		if fmt.Sprint(unused) != fmt.Sprint(c.expUnused) {
@@ -49,14 +62,14 @@ var UnusedSimple = []struct {
 	expUnused []string
 }{
 	{
-		`package main
+		`package visitors
 		func f(a int) {
 		}
 		`,
 		[]string{"a", "f"},
 	},
 	{
-		`package main
+		`package visitors
 		func f(a int) {
 			a = 1
 		}
@@ -64,7 +77,7 @@ var UnusedSimple = []struct {
 		[]string{"f"},
 	},
 	{
-		`package main
+		`package visitors
 		func f(a int) {
 			if true {
 				a = 1
@@ -74,7 +87,7 @@ var UnusedSimple = []struct {
 		[]string{"f"},
 	},
 	{
-		`package main
+		`package visitors
 		func init() {
 			a := 1
 			if true {
@@ -86,7 +99,7 @@ var UnusedSimple = []struct {
 		[]string{"a"},
 	},
 	{
-		`package main
+		`package visitors
 		func init() {
 			for i := range []int{} {
 				println(i)
@@ -95,16 +108,16 @@ var UnusedSimple = []struct {
 		`,
 		[]string{},
 	},
-	{"package main;import \"strings\";type T struct {A int};func init() *A { return T{A: strings.Split()} }", []string{}},
+	{"package visitors;import \"strings\";type T struct {A int};func init() *A { return T{A: strings.Split()} }", []string{}},
 	{
-		`package main
+		`package visitors
 		import "go/token"
 		type T struct { token int }
 		`,
 		[]string{"T", `"go/token"`},
 	},
 	{
-		`package main
+		`package visitors
 		import "go/token"
 		var _ = struct {token int} {token: 1}
 		var _ = []struct {unused int} { {unused: 1}, {unused: 2} }
@@ -112,7 +125,7 @@ var UnusedSimple = []struct {
 		[]string{`"go/token"`},
 	},
 	{
-		`package main
+		`package visitors
 		func init() {
 			if i := 1; i == 1 {
 			}
@@ -121,7 +134,7 @@ var UnusedSimple = []struct {
 		[]string{},
 	},
 	{
-		`package main
+		`package visitors
 		func f(a int) {
 			var _ = func () {
 				b := a
@@ -131,7 +144,7 @@ var UnusedSimple = []struct {
 		[]string{"b", "f"},
 	},
 	{
-		`package main
+		`package visitors
 		func f(a int) {
 			var _ = func () {
 				b := a
@@ -142,34 +155,34 @@ var UnusedSimple = []struct {
 		[]string{"f"},
 	},
 	{
-		`package main
+		`package visitors
 		import "fmt"
 		`,
 		[]string{`"fmt"`},
 	},
 	{
-		`package main
+		`package visitors
 		import "fmt"
 		var i = fmt.Println
 		`,
 		[]string{"i"},
 	},
 	{
-		`package main
+		`package visitors
 		import "fmt"
 		func f(_ fmt.Stringer)
 		`,
 		[]string{"f"},
 	},
 	{
-		`package main
+		`package visitors
 		import "io/ioutil"
 		var _ = ioutil.Discard
 		`,
 		[]string{},
 	},
 	{
-		`package main
+		`package visitors
 		import "io/ioutil"
 		type T struct {ioutil string}
 		var _ = T{}.ioutil
@@ -177,7 +190,7 @@ var UnusedSimple = []struct {
 		[]string{`"io/ioutil"`},
 	},
 	{
-		`package main
+		`package visitors
 		import "bytes"
 		func init() {
 			var b bytes.Buffer
@@ -186,7 +199,7 @@ var UnusedSimple = []struct {
 		[]string{"b"},
 	},
 	{
-		`package main
+		`package visitors
 		func init() {
 			switch x := 1; x {
 			}
@@ -195,7 +208,7 @@ var UnusedSimple = []struct {
 		[]string{},
 	},
 	{
-		`package main
+		`package visitors
 		func init() {
 			x := []string{}
 			for _ = range x {
@@ -205,7 +218,7 @@ var UnusedSimple = []struct {
 		[]string{},
 	},
 	{
-		`package main
+		`package visitors
 		func main() {
 			for i := 0; i <= 10; i++ {
 			}
@@ -214,7 +227,7 @@ var UnusedSimple = []struct {
 		[]string{"main"},
 	},
 	{
-		`package main
+		`package visitors
 		func main() {
 			for i := 0; true; {
 			}
@@ -223,7 +236,7 @@ var UnusedSimple = []struct {
 		[]string{"i", "main"},
 	},
 	{
-		`package main
+		`package visitors
 		import "fmt"
 		type iface interface { f(fmt.Stringer); z() }`,
 		[]string{"iface"},
