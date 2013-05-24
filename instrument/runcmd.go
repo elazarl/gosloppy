@@ -35,9 +35,7 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 				if err != nil {
 					return err
 				}
-				if pkg, err = Import(*basedir, rel); err != nil {
-					return err
-				}
+				gocmd.Params = []string{rel}
 				break
 			}
 		}
@@ -47,18 +45,16 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 			if err != nil {
 				return err
 			}
-			if pkg, err = Import(*basedir, rel); err != nil {
-				return err
-			}
+			gocmd.Params = []string{rel}
 		}
-		if pkg == nil {
+		if len(gocmd.Params) == 0 {
 			pkg, err = ImportDir(*basedir, ".")
 		}
-	} else {
-		pkg, err = Import(*basedir, gocmd.Params[0])
 	}
-	if err != nil {
-		return err
+	if pkg == nil {
+		if pkg, err = Import(*basedir, gocmd.Params[0]); err != nil {
+			return err
+		}
 	}
 	pkg.InstrumentGoroot = *goroot
 	outdir, hasGoroot, err := pkg.Instrument(gocmd.Command == "test", f)
@@ -84,18 +80,19 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 	}
 	newgocmd.Executable = "go"
 	// TODO(elazarl): Support build gofile.go gofile2.go
-	if newgocmd.Command != "run" {
+	if newgocmd.Command != "run" && !pkg.pkg.Goroot { // goroot package must be in its place
 		newgocmd.Params = nil
+	}
+	// TODO(elazarl): hackish, find better way
+	delete(newgocmd.BuildFlags, "basedir")
+	delete(newgocmd.BuildFlags, "goroot")
+	minusC := newgocmd.BuildFlags["c"] != ""
+	if newgocmd.Command == "test" {
+		newgocmd.BuildFlags["c"] = "true"
 	}
 	if fl.Lookup("x").Value.String() == "true" {
 		log.Println("In:", newgocmd.WorkDir)
 		log.Println("Executing:", newgocmd)
-	}
-	// TODO(elazarl): hackish, find better way
-	delete(newgocmd.BuildFlags, "basedir")
-	minusC := newgocmd.BuildFlags["c"] != ""
-	if newgocmd.Command == "test" {
-		newgocmd.BuildFlags["c"] = "true"
 	}
 	if err := newgocmd.Runnable().Run(); err != nil {
 		return err
