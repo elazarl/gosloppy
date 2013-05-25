@@ -108,6 +108,9 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 		}
 		// output name is unclear: http://code.google.com/p/go/issues/detail?id=5230
 		testoutput := filepath.Join(outdir, filepath.Base(outdir)+".test")
+		if len(newgocmd.Params) > 0 {
+			testoutput = filepath.Join(outdir, filepath.Base(newgocmd.Params[0])+".test")
+		}
 		if minusC {
 			if err := os.Rename(testoutput, oldname+".test"); err != nil {
 				return err
