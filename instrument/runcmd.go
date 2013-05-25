@@ -76,7 +76,7 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 		return err
 	}
 	if hasGoroot && *goroot {
-		newgocmd.Env["GOROOT"] = "goroot"
+		newgocmd.Env["GOROOT"] = filepath.Join(outdir, "goroot")
 	}
 	newgocmd.Executable = "go"
 	// TODO(elazarl): Support build gofile.go gofile2.go
