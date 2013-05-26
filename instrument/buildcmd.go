@@ -26,12 +26,24 @@ type GoCmd struct {
 	ExtraFlags []string
 }
 
+// Represents the values of Go's "flag" package command line flags in a certain command line.
+//     fs := flag.NewFlagSet("", flag.ContinueOnError)
+//     fs.Bool("bool", false, "")
+//     fs.Bool("booldefault", true, "")
+//     fs.String("string", "bobo", "")
+//     fs.Parse([]string{"-bool", "-string", "input", "arg1"})
+//     fmt.Println(instrument.FromFlagSet(fs))
+// Output:
+//     string=input bool=true
 type Flags map[string]string
 
+// FromFlagSet serialize flags set in the flagset into Flag
 func FromFlagSet(fs *flag.FlagSet) Flags {
 	return make(Flags).FromFlagSet(fs)
 }
 
+// FromFlagSet adds flags set in flagset into flags. In case of conflict, flags in flagset
+// will override flags already set.
 func (flags Flags) FromFlagSet(fs *flag.FlagSet) Flags {
 	fs.Visit(func(f *flag.Flag) {
 		flags[f.Name] = f.Value.String()
@@ -39,6 +51,7 @@ func (flags Flags) FromFlagSet(fs *flag.FlagSet) Flags {
 	return flags
 }
 
+// Clone returns a new Flags instance with the same values set.
 func (flags Flags) Clone() Flags {
 	clone := make(Flags)
 	for k, v := range flags {
@@ -47,12 +60,14 @@ func (flags Flags) Clone() Flags {
 	return clone
 }
 
+// String writes the flags into a string parsable by the flag package
 func (flags Flags) String() string {
 	b := make([]byte, 0, 100)
 	for k, v := range flags {
 		b = append(b, k+"="+v...)
+		b = append(b, ' ')
 	}
-	return string(b)
+	return string(b[:len(b)-1])
 }
 
 func NewGoCmd(workdir string, args ...string) (*GoCmd, error) {
