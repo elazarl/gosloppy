@@ -11,6 +11,18 @@ import (
 	"github.com/elazarl/gosloppy/patch"
 )
 
+// InstrumentCmd will run the go tool command specified in "args", but will make sure the
+// package file's are instrumented with f before running the command.
+// For example:
+//     // tests the package foo/bar, replace all files' content with string "bobo". Would not compile.
+//     InstrumentCmd(func(p *patch.PatchableFile) patch.Patches { return patch.Replace(p.All(), "bobo") },
+//         "go", "test", "foo/bar")
+//     // Another option to test foo/bar
+//     os.Chdir(filepath.Join(os.Getenv("GOPATH"), "src", "foo", "bar"))
+//     InstrumentCmd(func(p *patch.PatchableFile) patch.Patches { return patch.Replace(p.All(), "bobo") },
+//         "goCommandNameIsIgnored", "test")
+//     // You can even instrument pacakges in $GOROOT if you use the -goroot switch
+//     InstrumentCmd(f, "go", "test", "-goroot", "net/url")
 func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) error {
 	fl := flag.NewFlagSet("", flag.ContinueOnError)
 	basedir := fl.String("basedir", "", "instrument all packages decendant f basedir")
