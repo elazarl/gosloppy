@@ -58,24 +58,26 @@ func getNameOrGuess(imp *ast.ImportSpec) string {
 }
 
 /*
-# to generate run
-(cd $GOROOT/src/pkg; bash -c 'find * -type d' | grep -v testdata | \
-python -c 'import sys;import glob;from collections import defaultdict
-d = defaultdict(list)
-lst = sys.stdin.read().split()
-print "var Stdlib = map[string]string{"
-m = {}
-for l in lst:
-    d[l.split("/")[-1]].append(l)
-    if not glob.glob(l+"/*.go"): continue
-    print """\t`"%s"`: "%s",""" % (l, l.split("/")[-1])
-print "}"
-print "var RevStdlib = map[string][]string{"
-for k, v in d.iteritems():
-    print """\t"%s": []string{`"%s"`},""" % (k, "\"`,`\"".join(v))
-print "}"')
+to generate run
+    (cd $GOROOT/src/pkg; bash -c 'find * -type d' | grep -v testdata | \
+    python -c 'import sys;import glob;from collections import defaultdict
+    d = defaultdict(list)
+    lst = sys.stdin.read().split()
+    print "var Stdlib = map[string]string{"
+    m = {}
+    for l in lst:
+        d[l.split("/")[-1]].append(l)
+        if not glob.glob(l+"/*.go"): continue
+        print """\t`"%s"`: "%s",""" % (l, l.split("/")[-1])
+    print "}"
+    print "var RevStdlib = map[string][]string{"
+    for k, v in d.iteritems():
+        print """\t"%s": []string{`"%s"`},""" % (k, "\"`,`\"".join(v))
+    print "}"')
 */
-// all stdlib precached, from rev 5b76706b55af (probably Go 1.1)
+// all stdlib precached, from Go 1.1
+//     $ hg id
+//     e570c2daeaca (release-branch.go1.1) go1.1/release
 var DefaultImportCache = ImportCache(Stdlib)
 
 var Stdlib = map[string]string{
@@ -84,64 +86,63 @@ var Stdlib = map[string]string{
 	`"bufio"`:               "bufio",
 	`"builtin"`:             "builtin",
 	`"bytes"`:               "bytes",
-	`"compress/gzip"`:       "gzip",
-	`"compress/zlib"`:       "zlib",
-	`"compress/lzw"`:        "lzw",
-	`"compress/flate"`:      "flate",
 	`"compress/bzip2"`:      "bzip2",
-	`"container/list"`:      "list",
+	`"compress/flate"`:      "flate",
+	`"compress/gzip"`:       "gzip",
+	`"compress/lzw"`:        "lzw",
+	`"compress/zlib"`:       "zlib",
 	`"container/heap"`:      "heap",
+	`"container/list"`:      "list",
 	`"container/ring"`:      "ring",
 	`"crypto"`:              "crypto",
+	`"crypto/aes"`:          "aes",
+	`"crypto/cipher"`:       "cipher",
+	`"crypto/des"`:          "des",
 	`"crypto/dsa"`:          "dsa",
-	`"crypto/rand"`:         "rand",
-	`"crypto/tls"`:          "tls",
 	`"crypto/ecdsa"`:        "ecdsa",
+	`"crypto/elliptic"`:     "elliptic",
+	`"crypto/hmac"`:         "hmac",
+	`"crypto/md5"`:          "md5",
+	`"crypto/rand"`:         "rand",
+	`"crypto/rc4"`:          "rc4",
+	`"crypto/rsa"`:          "rsa",
+	`"crypto/sha1"`:         "sha1",
+	`"crypto/sha256"`:       "sha256",
+	`"crypto/sha512"`:       "sha512",
+	`"crypto/subtle"`:       "subtle",
+	`"crypto/tls"`:          "tls",
 	`"crypto/x509"`:         "x509",
 	`"crypto/x509/pkix"`:    "pkix",
-	`"crypto/subtle"`:       "subtle",
-	`"crypto/md5"`:          "md5",
-	`"crypto/elliptic"`:     "elliptic",
-	`"crypto/rsa"`:          "rsa",
-	`"crypto/hmac"`:         "hmac",
-	`"crypto/cipher"`:       "cipher",
-	`"crypto/sha512"`:       "sha512",
-	`"crypto/sha1"`:         "sha1",
-	`"crypto/rc4"`:          "rc4",
-	`"crypto/aes"`:          "aes",
-	`"crypto/sha256"`:       "sha256",
-	`"crypto/des"`:          "des",
 	`"database/sql"`:        "sql",
 	`"database/sql/driver"`: "driver",
-	`"debug/pe"`:            "pe",
 	`"debug/dwarf"`:         "dwarf",
-	`"debug/macho"`:         "macho",
 	`"debug/elf"`:           "elf",
 	`"debug/gosym"`:         "gosym",
-	`"encoding/pem"`:        "pem",
+	`"debug/macho"`:         "macho",
+	`"debug/pe"`:            "pe",
 	`"encoding/ascii85"`:    "ascii85",
-	`"encoding/base32"`:     "base32",
-	`"encoding/gob"`:        "gob",
-	`"encoding/xml"`:        "xml",
 	`"encoding/asn1"`:       "asn1",
+	`"encoding/base32"`:     "base32",
 	`"encoding/base64"`:     "base64",
-	`"encoding/json"`:       "json",
-	`"encoding/hex"`:        "hex",
 	`"encoding/binary"`:     "binary",
 	`"encoding/csv"`:        "csv",
+	`"encoding/gob"`:        "gob",
+	`"encoding/hex"`:        "hex",
+	`"encoding/json"`:       "json",
+	`"encoding/pem"`:        "pem",
+	`"encoding/xml"`:        "xml",
 	`"errors"`:              "errors",
 	`"expvar"`:              "expvar",
 	`"flag"`:                "flag",
 	`"fmt"`:                 "fmt",
-	`"go/parser"`:           "parser",
-	`"go/doc"`:              "doc",
 	`"go/ast"`:              "ast",
-	`"go/types"`:            "types",
+	`"go/build"`:            "build",
+	`"go/doc"`:              "doc",
+	`"go/format"`:           "format",
+	`"go/parser"`:           "parser",
+	`"go/printer"`:          "printer",
 	`"go/scanner"`:          "scanner",
 	`"go/token"`:            "token",
-	`"go/printer"`:          "printer",
-	`"go/build"`:            "build",
-	`"go/format"`:           "format",
 	`"hash"`:                "hash",
 	`"hash/adler32"`:        "adler32",
 	`"hash/crc32"`:          "crc32",
@@ -150,50 +151,50 @@ var Stdlib = map[string]string{
 	`"html"`:                "html",
 	`"html/template"`:       "template",
 	`"image"`:               "image",
-	`"image/png"`:           "png",
-	`"image/draw"`:          "draw",
-	`"image/jpeg"`:          "jpeg",
 	`"image/color"`:         "color",
+	`"image/draw"`:          "draw",
 	`"image/gif"`:           "gif",
+	`"image/jpeg"`:          "jpeg",
+	`"image/png"`:           "png",
 	`"index/suffixarray"`:   "suffixarray",
 	`"io"`:                  "io",
 	`"io/ioutil"`:           "ioutil",
 	`"log"`:                 "log",
 	`"log/syslog"`:          "syslog",
 	`"math"`:                "math",
-	`"math/rand"`:           "rand",
-	`"math/cmplx"`:          "cmplx",
 	`"math/big"`:            "big",
+	`"math/cmplx"`:          "cmplx",
+	`"math/rand"`:           "rand",
 	`"mime"`:                "mime",
 	`"mime/multipart"`:      "multipart",
 	`"net"`:                 "net",
-	`"net/mail"`:            "mail",
 	`"net/http"`:            "http",
 	`"net/http/cgi"`:        "cgi",
-	`"net/http/pprof"`:      "pprof",
-	`"net/http/fcgi"`:       "fcgi",
-	`"net/http/httputil"`:   "httputil",
 	`"net/http/cookiejar"`:  "cookiejar",
+	`"net/http/fcgi"`:       "fcgi",
 	`"net/http/httptest"`:   "httptest",
+	`"net/http/httputil"`:   "httputil",
+	`"net/http/pprof"`:      "pprof",
+	`"net/mail"`:            "mail",
 	`"net/rpc"`:             "rpc",
 	`"net/rpc/jsonrpc"`:     "jsonrpc",
-	`"net/textproto"`:       "textproto",
 	`"net/smtp"`:            "smtp",
+	`"net/textproto"`:       "textproto",
 	`"net/url"`:             "url",
 	`"os"`:                  "os",
-	`"os/user"`:             "user",
 	`"os/exec"`:             "exec",
 	`"os/signal"`:           "signal",
+	`"os/user"`:             "user",
 	`"path"`:                "path",
 	`"path/filepath"`:       "filepath",
 	`"reflect"`:             "reflect",
 	`"regexp"`:              "regexp",
 	`"regexp/syntax"`:       "syntax",
 	`"runtime"`:             "runtime",
-	`"runtime/debug"`:       "debug",
-	`"runtime/race"`:        "race",
-	`"runtime/pprof"`:       "pprof",
 	`"runtime/cgo"`:         "cgo",
+	`"runtime/debug"`:       "debug",
+	`"runtime/pprof"`:       "pprof",
+	`"runtime/race"`:        "race",
 	`"sort"`:                "sort",
 	`"strconv"`:             "strconv",
 	`"strings"`:             "strings",
@@ -203,17 +204,16 @@ var Stdlib = map[string]string{
 	`"testing"`:             "testing",
 	`"testing/iotest"`:      "iotest",
 	`"testing/quick"`:       "quick",
-	`"text/template"`:       "template",
-	`"text/template/parse"`: "parse",
 	`"text/scanner"`:        "scanner",
 	`"text/tabwriter"`:      "tabwriter",
+	`"text/template"`:       "template",
+	`"text/template/parse"`: "parse",
 	`"time"`:                "time",
 	`"unicode"`:             "unicode",
-	`"unicode/utf8"`:        "utf8",
 	`"unicode/utf16"`:       "utf16",
+	`"unicode/utf8"`:        "utf8",
 	`"unsafe"`:              "unsafe",
 }
-
 var RevStdlib = map[string][]string{
 	"text":        []string{`"text"`},
 	"jpeg":        []string{`"image/jpeg"`},
@@ -247,7 +247,7 @@ var RevStdlib = map[string][]string{
 	"bufio":       []string{`"bufio"`},
 	"debug":       []string{`"debug"`, `"runtime/debug"`},
 	"utf16":       []string{`"unicode/utf16"`},
-	"zlib":        []string{`"compress/zlib"`},
+	"des":         []string{`"crypto/des"`},
 	"bytes":       []string{`"bytes"`},
 	"testing":     []string{`"testing"`},
 	"sync":        []string{`"sync"`},
@@ -310,7 +310,7 @@ var RevStdlib = map[string][]string{
 	"png":         []string{`"image/png"`},
 	"sha256":      []string{`"crypto/sha256"`},
 	"rc4":         []string{`"crypto/rc4"`},
-	"des":         []string{`"crypto/des"`},
+	"zlib":        []string{`"compress/zlib"`},
 	"flate":       []string{`"compress/flate"`},
 	"scanner":     []string{`"go/scanner"`, `"text/scanner"`},
 	"tar":         []string{`"archive/tar"`},
@@ -343,7 +343,6 @@ var RevStdlib = map[string][]string{
 	"user":        []string{`"os/user"`},
 	"sql":         []string{`"database/sql"`},
 	"suffixarray": []string{`"index/suffixarray"`},
-	"types":       []string{`"go/types"`},
 	"sha1":        []string{`"crypto/sha1"`},
 	"database":    []string{`"database"`},
 	"url":         []string{`"net/url"`},
