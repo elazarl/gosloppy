@@ -46,5 +46,4 @@ find . -maxdepth 1 -name ${@:-test\*} -type d| sort | while read d; do
 		fi
 	fi
 	) || die 
-done
-echo SUCCESS
+done && echo SUCCESS

@@ -3,7 +3,6 @@ package instrument
 import (
 	"errors"
 	"flag"
-	"go/build"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +25,7 @@ type GoCmd struct {
 	ExtraFlags []string
 }
 
-// Represents the values of Go's "flag" package command line flags in a certain command line.
+// Flags represents the values of Go's "flag" package command line flags in a certain command line.
 //     fs := flag.NewFlagSet("", flag.ContinueOnError)
 //     fs.Bool("bool", false, "")
 //     fs.Bool("booldefault", true, "")
@@ -70,10 +69,12 @@ func (flags Flags) String() string {
 	return string(b[:len(b)-1])
 }
 
+// NewGoCmd creates a GoCmd struct from command line arguments and a working diretory
 func NewGoCmd(workdir string, args ...string) (*GoCmd, error) {
 	return NewGoCmdWithFlags(flag.NewFlagSet("", flag.ContinueOnError), workdir, args...)
 }
 
+// NewGoCmdWithFlags like NewGoCmd, but wl also parse flags configured i flagset
 func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*GoCmd, error) {
 	if len(args) < 2 {
 		return nil, errors.New("GoCmd must have at least two arguments (e.g. go build)")
@@ -153,32 +154,37 @@ func (cmd *GoCmd) Args() []string {
 	return l
 }
 
+// String returns string representaton of the Go comand, it is not executable by shell, and does
+// not necessarily escape arguments correctly. For debugging purpose only.
 func (cmd *GoCmd) String() string {
 	return strings.Join(append([]string{cmd.Executable}, cmd.Args()...), " ")
 }
 
+// OutputFileName returns the output file of the go build tool execution. For example,
+//     NewGoCmd("/tmp/foo", "go", "build") // returns foo, by directory name
+//     NewGoCmd(".", "go", "test", "-c", "foo/bar") // returns bar.test
+// Note: libraries (non-main packages), have no well defined output. The return
+// value of OutputFileName is undefined if cmd is "go build a_non-main_package".
 func (cmd *GoCmd) OutputFileName() (name string, ismain bool, err error) {
 	if len(cmd.Params) > 1 {
 		return "", false, errors.New("No support for more than a single package:" + strings.Join(cmd.Params, " "))
 	}
-	// TODO(elazar): use previous build.Package, or make build.Package cache. no reason to duplicate code
-	var pkg *build.Package
+	// Output filename of tests depends on path: http://code.google.com/p/go/issues/detail?id=5230
+	testsuffix := ""
+	if cmd.Command == "test" {
+		testsuffix += ".test"
+	}
+	var d string
 	if len(cmd.Params) == 0 {
-		pkg, err = build.ImportDir(cmd.WorkDir, 0)
+		d, err = filepath.Abs(cmd.WorkDir)
+		if err != nil {
+			return "", false, err
+		}
+		d = filepath.Base(d)
 	} else {
-		pkg, err = build.Import(cmd.Params[0], "", 0)
+		d = filepath.Base(cmd.Params[0])
 	}
-	if err != nil {
-		return "", false, err
-	}
-	if pkg.Name != "main" {
-		return pkg.Name, true, nil
-	}
-	d, err := filepath.Abs(pkg.Dir)
-	if err != nil {
-		return "", false, err
-	}
-	return filepath.Base(d), false, nil
+	return d + testsuffix, false, nil
 }
 
 // Retarget will return a new command line to compile the new target, but keep paths

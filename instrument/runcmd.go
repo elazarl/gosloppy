@@ -110,26 +110,29 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 		return err
 	}
 	if newgocmd.Command == "test" {
-		_, _, err := newgocmd.OutputFileName()
+		finalname, _, err := gocmd.OutputFileName()
+		workdir, err := filepath.Abs(gocmd.WorkDir)
+		if err != nil {
+			return err
+		}
+		finalname = filepath.Join(workdir, finalname)
 		if err != nil {
 			panic("Should never happen: Cannot find package name, not producing test executable")
 		}
-		oldname, _, err := gocmd.OutputFileName()
+		currname, _, err := newgocmd.OutputFileName()
+		currname = filepath.Join(outdir, currname)
 		if err != nil {
 			panic("Should never happen: Cannot find package name, not producing test executable")
 		}
-		// output name is unclear: http://code.google.com/p/go/issues/detail?id=5230
-		testoutput := filepath.Join(outdir, filepath.Base(outdir)+".test")
-		if len(newgocmd.Params) > 0 {
-			testoutput = filepath.Join(outdir, filepath.Base(newgocmd.Params[0])+".test")
+		if fl.Lookup("x").Value.String() == "true" {
+			log.Println("mv", currname, finalname)
 		}
-		if minusC {
-			if err := os.Rename(testoutput, oldname+".test"); err != nil {
-				return err
-			}
-		} else {
-			defer os.Remove(testoutput)
-			r := exec.Command(testoutput, newgocmd.ExtraFlags...)
+		if err := os.Rename(currname, finalname); err != nil {
+			return err
+		}
+		if !minusC {
+			defer os.Remove(finalname)
+			r := exec.Command(finalname, newgocmd.ExtraFlags...)
 			r.Dir = gocmd.WorkDir
 			r.Stdin = os.Stdin
 			r.Stdout = os.Stdout
