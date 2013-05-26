@@ -5,6 +5,7 @@ import (
 	"go/build"
 )
 
+// PathablePkg represents a package of patchable files
 type PatchablePkg struct {
 	Name  string
 	Scope *ast.Scope
@@ -36,6 +37,7 @@ func ParsePackage(buildpkg *build.Package) (pkg *PatchablePkg, testpkg *Patchabl
 	return pkg, testpkg, nil
 }
 
+// Parse files parses a group of files into a PatchablePkg
 func ParseFiles(files ...string) (*PatchablePkg, error) {
 	pkg := NewPatchablePkg()
 	if err := pkg.ParseFiles(files...); err != nil {
@@ -44,6 +46,7 @@ func ParseFiles(files ...string) (*PatchablePkg, error) {
 	return pkg, nil
 }
 
+// NewPatchablePkg returns an empty PatchablePkg
 func NewPatchablePkg() *PatchablePkg {
 	return &PatchablePkg{
 		Scope: ast.NewScope(nil),
@@ -51,6 +54,7 @@ func NewPatchablePkg() *PatchablePkg {
 	}
 }
 
+// ParseFiles parse and adds given files to pkg
 func (pkg *PatchablePkg) ParseFiles(files ...string) error {
 	for _, file := range files {
 		if err := pkg.ParseFile(file); err != nil {
@@ -60,6 +64,7 @@ func (pkg *PatchablePkg) ParseFiles(files ...string) error {
 	return nil
 }
 
+// ParseFile parses and adds a single file to pkg
 func (pkg *PatchablePkg) ParseFile(file string) error {
 	patchable, err := ParsePatchable(file)
 	if err != nil {

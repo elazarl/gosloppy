@@ -9,6 +9,8 @@ import (
 	"sort"
 )
 
+// PatchableFile represents a parsed Go file. You can change the Patchable file,
+// and preserve original formatting.
 type PatchableFile struct {
 	PkgName  string
 	FileName string
@@ -17,6 +19,7 @@ type PatchableFile struct {
 	Orig     string
 }
 
+// Patch represents a change to a source file between StartPos() and EndPos()
 type Patch interface {
 	StartPos() token.Pos
 	EndPos() token.Pos
@@ -35,16 +38,19 @@ type BasePatch struct {
 	End   token.Pos
 }
 
+// InsertPatch will replace text between Start() and End() with Insert
 type InsertPatch struct {
 	BasePatch
 	Insert string
 }
 
+// InsertPatch will replce text between Start() and End() with text representation of Insert node
 type InsertNodePatch struct {
 	BasePatch
 	Insert ast.Node
 }
 
+// RemovePatch removes a node from the Go source
 type RemovePatch struct {
 	ast.Node
 }
@@ -65,22 +71,27 @@ func (p *InsertPatch) EndPos() token.Pos {
 	return p.End
 }
 
-func Insert(pos token.Pos, insert string) Patch {
-	return &InsertPatch{BasePatch{pos, pos}, insert}
+// Insert returns a patch inserting text txt at position pos
+func Insert(pos token.Pos, txt string) Patch {
+	return &InsertPatch{BasePatch{pos, pos}, txt}
 }
 
-func InsertNode(pos token.Pos, insert ast.Node) Patch {
-	return &InsertNodePatch{BasePatch{pos, pos}, insert}
+// Insert returns a patch inserting text content of node nd at position pos
+func InsertNode(pos token.Pos, nd ast.Node) Patch {
+	return &InsertNodePatch{BasePatch{pos, pos}, nd}
 }
 
+// Replace rerturns a patch replacing node nd with text replacement
 func Replace(nd ast.Node, replacement string) Patch {
 	return &InsertPatch{BasePatch{nd.Pos(), nd.End()}, replacement}
 }
 
+// Remove returns a patch removing a node from the Go source file
 func Remove(nd ast.Node) Patch {
 	return RemovePatch{nd}
 }
 
+// ParsePatchable parses a singlefile, and return corresponding PatchabeFile
 func ParsePatchable(name string) (*PatchableFile, error) {
 	fset := token.NewFileSet()
 	buf, err := ioutil.ReadFile(name)
@@ -94,15 +105,18 @@ func ParsePatchable(name string) (*PatchableFile, error) {
 	return &PatchableFile{file.Name.Name, name, file, fset, string(buf)}, nil
 }
 
-func (p *PatchableFile) Get(node ast.Node) string {
-	return p.Slice(node.Pos(), node.End())
+// Get returns text corresponding to nd `nd` in file
+func (p *PatchableFile) Get(nd ast.Node) string {
+	return p.Slice(nd.Pos(), nd.End())
 }
 
+// Slice returns text between positions `from` and `to` in file
 func (p *PatchableFile) Slice(from, to token.Pos) string {
 	start, end := p.Fset.Position(from), p.Fset.Position(to)
 	return p.Orig[start.Offset:end.Offset]
 }
 
+// Fprint writes the text of node `nd` to writer `w`
 func (p *PatchableFile) Fprint(w io.Writer, nd ast.Node) (int, error) {
 	start, end := p.Fset.Position(nd.Pos()), p.Fset.Position(nd.End())
 	return io.WriteString(w, p.Orig[start.Offset:end.Offset])
@@ -120,6 +134,8 @@ func (n nodeSlice) End() token.Pos {
 	return n.end
 }
 
+// All returns an ast.Node corresponding to all text in the file
+// note that ast.File does not inlclude comments before package statement
 func (p *PatchableFile) All() ast.Node {
 	pos, end := p.File.Pos(), p.File.End()
 	for _, comment := range p.File.Comments {
@@ -135,25 +151,25 @@ func (p *PatchableFile) All() ast.Node {
 
 type Patches []Patch
 
-type StablePatches struct {
+type stablePatches struct {
 	patches Patches
 	perm    []int
 }
 
-func (p *StablePatches) Len() int { return len(p.patches) }
-func (p *StablePatches) Swap(i, j int) {
+func (p *stablePatches) Len() int { return len(p.patches) }
+func (p *stablePatches) Swap(i, j int) {
 	p.patches[i], p.patches[j] = p.patches[j], p.patches[i]
 	p.perm[i], p.perm[j] = p.perm[j], p.perm[i]
 }
 
-func (p *StablePatches) Less(i, j int) bool {
+func (p *stablePatches) Less(i, j int) bool {
 	return p.patches[i].StartPos() < p.patches[j].StartPos() ||
 		p.patches[j].StartPos() == p.patches[i].StartPos() && p.perm[i] < p.perm[j]
 }
 
 func sorted(patches []Patch) Patches {
 
-	sorted := &StablePatches{make(Patches, len(patches)), make([]int, len(patches))}
+	sorted := &stablePatches{make(Patches, len(patches)), make([]int, len(patches))}
 	for i := 0; i < len(sorted.perm); i++ {
 		sorted.perm[i] = i
 	}
@@ -171,7 +187,7 @@ func write(oldn *int, err *error, w io.Writer, s string) {
 	}
 }
 
-// Write the file with patches applied in that order.
+// FprintPatched apply patches to p and write the result to w
 // Note: If patches contradicts each other, behaviour is undefined.
 func (p *PatchableFile) FprintPatched(w io.Writer, nd ast.Node, patches []Patch) (total int, err error) {
 	defer func() {

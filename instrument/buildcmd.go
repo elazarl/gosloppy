@@ -216,6 +216,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	return &GoCmd{make(map[string]string), newdir, cmd.Executable, cmd.Command, buildflags, cmd.Params, cmd.ExtraFlags}, nil
 }
 
+// Runnable returns an exec.Cmd that invoke the go tool, as specified in cmd
 func (cmd *GoCmd) Runnable() *exec.Cmd {
 	r := exec.Command(cmd.Executable, cmd.Args()...)
 	r.Dir = cmd.WorkDir
