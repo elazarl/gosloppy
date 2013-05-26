@@ -1,3 +1,17 @@
+// Package imports will find the real package name of a given import path.
+//
+// Usage:
+//
+// 	for _, imp := range file.Imports {
+// 		println("package name of", imp.Path.Value, "=", imports.GetNameOrGuess(imp))
+// 	}
+//
+// The main motivation of this package is:
+//
+// Finding out package name of an imort path involves expensive disk access every time.
+// Thus,
+// (1) Package imports provides a central way to cache package names.
+// (2) Package imports precache statically all package names from the Go's standard library, which are commonly used
 package imports
 
 import (
@@ -22,6 +36,7 @@ func (cache ImportCache) GetNameOrGuess(imp *ast.ImportSpec) string {
 	return rv
 }
 
+// GetNameOrGuess returns the package name of import spec imp
 func GetNameOrGuess(imp *ast.ImportSpec) string {
 	return DefaultImportCache.GetNameOrGuess(imp)
 }
