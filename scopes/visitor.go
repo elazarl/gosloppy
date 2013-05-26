@@ -7,16 +7,17 @@ import (
 	"log"
 )
 
+// Visitor will visit each node, and will calculate its scope
 type Visitor interface {
 	VisitExpr(scope *ast.Scope, expr ast.Expr) (w Visitor)
 	VisitStmt(scope *ast.Scope, stmt ast.Stmt) (w Visitor)
-	VisitDecl(scope *ast.Scope, stmt ast.Decl) (w Visitor)
+	VisitDecl(scope *ast.Scope, decl ast.Decl) (w Visitor)
 	// TODO(elazar): rethink the API, we probably want to give here a list of scopes
 	ExitScope(scope *ast.Scope, parent ast.Node, last bool) (w Visitor)
 }
 
 // We traverse types, since we need them to determine if import is used
-func WalkFields(v Visitor, fields []*ast.Field, scope *ast.Scope) {
+func walkFields(v Visitor, fields []*ast.Field, scope *ast.Scope) {
 	for _, field := range fields {
 		for _, name := range field.Names {
 			insertToScope(scope, name.Obj)
@@ -25,6 +26,7 @@ func WalkFields(v Visitor, fields []*ast.Field, scope *ast.Scope) {
 	}
 }
 
+// WalkExpr walks through nodes below expr with visitor v, assuming scope is expr's scope
 func WalkExpr(v Visitor, expr ast.Expr, scope *ast.Scope) {
 	if v = v.VisitExpr(scope, expr); v == nil {
 		return
@@ -37,10 +39,10 @@ func WalkExpr(v Visitor, expr ast.Expr, scope *ast.Scope) {
 	case *ast.FuncLit:
 		newscope := ast.NewScope(scope)
 		if expr.Type.Params != nil {
-			WalkFields(v, expr.Type.Params.List, newscope)
+			walkFields(v, expr.Type.Params.List, newscope)
 		}
 		if expr.Type.Results != nil {
-			WalkFields(v, expr.Type.Results.List, newscope)
+			walkFields(v, expr.Type.Results.List, newscope)
 		}
 		WalkStmt(v, expr.Body, newscope)
 		v.ExitScope(newscope, expr, true)
@@ -128,6 +130,7 @@ func WalkExpr(v Visitor, expr ast.Expr, scope *ast.Scope) {
 	}
 }
 
+// WalkStmt walks through nodes below stmt with visitor v, assuming scope is stmt's scope
 func WalkStmt(v Visitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) {
 	newscope = scope
 	if v = v.VisitStmt(scope, stmt); v == nil {
@@ -294,6 +297,7 @@ func WalkStmt(v Visitor, stmt ast.Stmt, scope *ast.Scope) (newscope *ast.Scope) 
 	return
 }
 
+// exitScopes activate the ExitScope method of the visitors on all scopes from inner to limit
 func exitScopes(v Visitor, inner, limit *ast.Scope, parent ast.Stmt) {
 	for inner != limit {
 		if inner == nil {
@@ -304,6 +308,8 @@ func exitScopes(v Visitor, inner, limit *ast.Scope, parent ast.Stmt) {
 	}
 }
 
+// WalkFile walks through in file with visitor v
+// TODO(elazar): we should take package scope into account
 func WalkFile(v Visitor, file *ast.File) {
 	if v == nil {
 		return
@@ -322,9 +328,9 @@ func WalkFile(v Visitor, file *ast.File) {
 				insertToScope(scope, d.Recv.List[0].Names[0].Obj)
 			}
 			// Params is always non-nil, since we always have parens, and need to know their pos
-			WalkFields(w, d.Type.Params.List, scope)
+			walkFields(w, d.Type.Params.List, scope)
 			if d.Type.Results != nil {
-				WalkFields(w, d.Type.Results.List, scope)
+				walkFields(w, d.Type.Results.List, scope)
 			}
 			// see http://golang.org/ref/spec#Function_declarations
 			// "A function declaration may omit the body.
@@ -366,6 +372,8 @@ func insertToScope(scope *ast.Scope, obj *ast.Object) {
 	scope.Insert(obj)
 }
 
+// Lookup will look an item in a scope an all parent scopes
+// note that scope.Lookup looks only in current scope, and ignores parents
 func Lookup(scope *ast.Scope, name string) *ast.Object {
 	for scope != nil {
 		if obj := scope.Lookup(name); obj != nil {
