@@ -48,7 +48,7 @@ func TestSimpleUnused(t *testing.T) {
 		}
 		file, _ := parse(c.body, t)
 		unused := []string{}
-		scopes.WalkFile(NewUnusedVisitor(unusedNames(func(name string) {
+		scopes.WalkFile(NewUnused(unusedNames(func(name string) {
 			unused = append(unused, name)
 		})), file)
 		if fmt.Sprint(unused) != fmt.Sprint(c.expUnused) {

@@ -38,8 +38,11 @@ func compareAssgn(lhs interface{}, rhs ast.Stmt) bool {
 	return false
 }
 
+// UnusedObj will add relevant patch into p (i.e. `; _ = i` if i is unused,
+// if the unused object needs to be patched (for instance, unused function
+// arguments does not need to be patched)
 func (p *PatchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
-	// iP the unused variable is a function argument, or TLD - ignore
+	// if the unused variable is a function argument, or TLD - ignore
 	switch obj.Decl.(type) {
 	case *ast.Field, *ast.GenDecl, *ast.TypeSpec:
 		return
@@ -88,6 +91,7 @@ func (p *PatchUnused) UnusedObj(obj *ast.Object, parent ast.Node) {
 	}
 }
 
+// UnusedImport adds relevant patch (_ before import path) to fix unused import error
 func (p *PatchUnused) UnusedImport(imp *ast.ImportSpec) {
 	if imp.Name != nil {
 		p.Patches = append(p.Patches, patch.Replace(imp.Name, "_"))

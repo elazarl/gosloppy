@@ -6,14 +6,19 @@ import (
 	"github.com/elazarl/gosloppy/scopes"
 )
 
+// MultiVisitor will apply multiple visitors to all ast nodes, in a single scopes.Walk* run
 type MultiVisitor struct {
 	*cow
 }
 
-func NewMultiVisitor(v ...scopes.Visitor) MultiVisitor {
-	return MultiVisitor{newCow(v...)}
+// NewMultiVisitor returns a new MultiVisitor applying all visitors vs
+func NewMultiVisitor(vs ...scopes.Visitor) MultiVisitor {
+	return MultiVisitor{newCow(vs...)}
 }
 
+// AllNil returns whether or not all visitors of the MultiVisitor are nil.
+// This can happen since a Visitor can modify itself by returning a different
+// Visitor in the Visit* function.
 func (v MultiVisitor) AllNil() bool {
 	for _, elt := range v.ar {
 		if elt != nil {

@@ -11,7 +11,6 @@ import (
 //     b := a.Set(1, 5)
 //     // a = [1 2 3] ([1, 5] -> b)
 //     // b = [1 5 3]
-
 type cow struct {
 	ar       []scopes.Visitor
 	children map[int]map[scopes.Visitor]*cow

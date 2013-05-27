@@ -10,6 +10,13 @@ import (
 	"github.com/elazarl/gosloppy/scopes"
 )
 
+// ShortError will add patches to replace statements like
+//     x, y := must(f())
+// with
+//     x, y, err := f()
+//     if err != nil {
+//	       panic(err)
+//     }
 type ShortError struct {
 	file    *patch.PatchableFile
 	patches *patch.Patches
@@ -22,12 +29,14 @@ type ShortError struct {
 	initTxt *[]byte
 }
 
-func (v *ShortError) SetFile(file *patch.PatchableFile) *ShortError {
+// NewShortError returns a shorterror instance relevant to file
+func NewShortError(file *patch.PatchableFile) *ShortError {
+	v := ShortError{}
 	v.file = file
 	v.patches = new(patch.Patches)
 	v.stmt, v.block = nil, nil
 	v.initTxt = new([]byte)
-	return v
+	return &v
 }
 
 func (v *ShortError) Patches() patch.Patches {
@@ -47,7 +56,7 @@ func (v *ShortError) tempVar(stem string, scope *ast.Scope) string {
 
 var MustKeyword = "must"
 
-// Yeah yeah, O(n^2) in the worst case. If you use so much must
+// Yeah yeah, O(n^2) in the worst case. If you use the "must" function so much
 // YOU are the worst case.
 func findinit(file *ast.File) *ast.FuncDecl {
 	for _, d := range file.Decls {

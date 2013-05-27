@@ -7,7 +7,8 @@ import (
 	"github.com/elazarl/gosloppy/scopes"
 )
 
-type Visitor interface {
+// UnusedVisitor visits unused idientifier and unused import statements
+type UnusedVisitor interface {
 	UnusedObj(obj *ast.Object, parent ast.Node)
 	UnusedImport(imp *ast.ImportSpec)
 }
@@ -16,26 +17,29 @@ func anonymousImport(name *ast.Ident) bool {
 	return name != nil && (name.Name == "_" || name.Name == ".")
 }
 
-func NewUnusedVisitor(v Visitor) *UnusedVisitor {
-	return &UnusedVisitor{make(map[*ast.Object]bool), make(map[*ast.Ident]bool), make(map[string]bool), v}
+// NewUnused returns a scopes.Visitor that visits unused identifiers
+func NewUnused(v UnusedVisitor) *Unused {
+	return &Unused{make(map[*ast.Object]bool), make(map[*ast.Ident]bool), make(map[string]bool), v}
 }
 
-type UnusedVisitor struct {
+// Unused is a scopes.Visitor that would visit all unused variables with the
+// given UnusedVisitor
+type Unused struct {
 	Used        map[*ast.Object]bool
 	Irrelevant  map[*ast.Ident]bool
 	UsedImports map[string]bool
-	Visitor     Visitor
+	Visitor     UnusedVisitor
 }
 
-func (v *UnusedVisitor) VisitStmt(*ast.Scope, ast.Stmt) scopes.Visitor {
+func (v *Unused) VisitStmt(*ast.Scope, ast.Stmt) scopes.Visitor {
 	return v
 }
 
-func (v *UnusedVisitor) VisitDecl(*ast.Scope, ast.Decl) scopes.Visitor {
+func (v *Unused) VisitDecl(*ast.Scope, ast.Decl) scopes.Visitor {
 	return v
 }
 
-func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) scopes.Visitor {
+func (v *Unused) VisitExpr(scope *ast.Scope, expr ast.Expr) scopes.Visitor {
 	switch expr := expr.(type) {
 	case *ast.Ident:
 		if v.Irrelevant[expr] {
@@ -57,7 +61,7 @@ func (v *UnusedVisitor) VisitExpr(scope *ast.Scope, expr ast.Expr) scopes.Visito
 	return v
 }
 
-func (v *UnusedVisitor) ExitScope(scope *ast.Scope, node ast.Node, last bool) scopes.Visitor {
+func (v *Unused) ExitScope(scope *ast.Scope, node ast.Node, last bool) scopes.Visitor {
 	for _, obj := range scope.Objects {
 		if !v.Used[obj] {
 			v.Visitor.UnusedObj(obj, node)
