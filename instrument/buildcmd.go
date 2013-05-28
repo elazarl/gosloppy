@@ -113,7 +113,7 @@ func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*
 		flagset.Bool("test.short", false, "")
 		flagset.Bool("test.v", false, "")
 	default:
-		return nil, errors.New("Currently only build run and test commands supported")
+		return nil, errors.New("Currently only build run and test commands supported. Sorry.")
 	}
 	if err := flagset.Parse(args[2:]); err != nil {
 		return nil, err
@@ -195,8 +195,14 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 		return nil, err
 	}
 	buildflags := cmd.BuildFlags.Clone()
+	params := cmd.Params
 	switch cmd.Command {
-	case "run", "test":
+	case "run":
+		params = []string{}
+		for _, p := range cmd.Params {
+			params = append(params, filepath.Join(newdir, filepath.Base(p)))
+		}
+	case "test":
 	case "build":
 		v := cmd.BuildFlags["o"]
 		if v == "" {
@@ -213,7 +219,7 @@ func (cmd *GoCmd) Retarget(newdir string) (*GoCmd, error) {
 	default:
 		return nil, errors.New("No support for commands other than build test or run")
 	}
-	return &GoCmd{make(map[string]string), newdir, cmd.Executable, cmd.Command, buildflags, cmd.Params, cmd.ExtraFlags}, nil
+	return &GoCmd{make(map[string]string), newdir, cmd.Executable, cmd.Command, buildflags, params, cmd.ExtraFlags}, nil
 }
 
 // Runnable returns an exec.Cmd that invoke the go tool, as specified in cmd
