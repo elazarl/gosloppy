@@ -28,11 +28,11 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) (
 	if len(args) > 1 && args[1] == "inline" {
 		switch args := args[2:]; {
 		case len(args) == 0:
-			pkg, err = ImportDir("-", ".")
+			pkg, err = ImportDir("", ".")
 		case len(args) > 1 || strings.HasSuffix(args[0], ".go"):
-			pkg = ImportFiles("-", args...)
+			pkg = ImportFiles("", args...)
 		default:
-			pkg, err = Import("-", args[0])
+			pkg, err = Import("", args[0])
 		}
 		return pkg.InstrumentInline(f)
 	}
