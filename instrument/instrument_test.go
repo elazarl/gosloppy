@@ -338,6 +338,17 @@ func TestGopathSubDir(t *testing.T) {
 	}()
 }
 
+func TestInline(t *testing.T) {
+	OrFail(dir("temp", file("a.go", "package main;func main() {println(`bobo`)}")).Build("."), t)
+	defer os.RemoveAll("temp")
+	pkg, err := ImportDir("", "temp")
+	OrFail(err, t)
+	OrFail(pkg.InstrumentInline(func(pf *patch.PatchableFile) patch.Patches {
+		return patch.Patches{patch.Replace(pf.File, "koko")}
+	}), t)
+	dir("temp", file("a.go", "koko")).AssertEqual("temp", t)
+}
+
 func fatalCaller(t *testing.T, depth int, msgs ...interface{}) {
 	_, file, line, ok := runtime.Caller(depth + 1) // +1 to go up fatalCaller's stack
 	if !ok {

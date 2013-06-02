@@ -156,6 +156,64 @@ func (i *Instrumentable) Instrument(withtests bool, f func(file *patch.Patchable
 	return d, hasGoroot, err
 }
 
+func (i *Instrumentable) InstrumentInline(f func(file *patch.PatchableFile) patch.Patches) error {
+	return i.instrumentInline(make(map[string]bool), f)
+}
+
+// returns a string that identifies the package
+func (i *Instrumentable) id() string {
+	if i.pkg.ImportPath == "" {
+		if i.pkg.Dir == "" {
+			// It's just a bunch of files
+			return strings.Join(i.pkg.GoFiles, ",")
+		}
+		// A non-gopath package
+		return i.pkg.Dir
+	}
+	return i.pkg.ImportPath
+}
+
+func (i *Instrumentable) instrumentInline(processed map[string]bool, f func(file *patch.PatchableFile) patch.Patches) error {
+	if processed[i.id()] {
+		return nil
+	}
+	processed[i.id()] = true
+	imps := i.pkg.Imports
+	if true {
+		imps = append(imps, i.pkg.TestImports...)
+		imps = append(imps, i.pkg.XTestImports...)
+	}
+	for _, imp := range imps {
+		if i.relevantImport(imp) {
+			pkg, err := i.doimport(imp)
+			if err != nil {
+				return err
+			}
+			if err := pkg.instrumentInline(processed, f); err != nil {
+				return err
+			}
+		}
+	}
+	pkg := patch.NewPatchablePkg()
+	if err := pkg.ParseFiles(i.Files()...); err != nil {
+		return err
+	}
+	for path, file := range pkg.Files {
+		patches := f(file)
+		outfile, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			return err
+		}
+		if _, err := file.FprintPatched(outfile, file.All(), patches); err != nil {
+			return err
+		}
+		if err := outfile.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // InstrumentTo will instrument all files in Instrumentable into outdir. It will instrument all subpackages
 // as described in Import.
 func (i *Instrumentable) InstrumentTo(withtests bool, outdir string,
@@ -294,7 +352,9 @@ func (i *Instrumentable) instrumentPatchable(outdir, relpath string, pkg *patch.
 					patches = appendNoContradict(patches, patch.Replace(imp.Path, `"./`+rel+`"`))
 				}
 			}
-			file.FprintPatched(outfile, file.All(), patches)
+			if _, err := file.FprintPatched(outfile, file.All(), patches); err != nil {
+				return err
+			}
 			if err := outfile.Close(); err != nil {
 				return err
 			}

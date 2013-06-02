@@ -23,7 +23,20 @@ import (
 //         "goCommandNameIsIgnored", "test")
 //     // You can even instrument pacakges in $GOROOT if you use the -goroot switch
 //     InstrumentCmd(f, "go", "test", "-goroot", "net/url")
-func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) error {
+func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) (err error) {
+	var pkg *Instrumentable
+	if len(args) > 1 && args[1] == "inline" {
+		switch args := args[2:]; {
+		case len(args) == 0:
+			pkg, err = ImportDir("-", ".")
+		case len(args) > 1 || strings.HasSuffix(args[0], ".go"):
+			pkg = ImportFiles("-", args...)
+		default:
+			pkg, err = Import("-", args[0])
+		}
+		return pkg.InstrumentInline(f)
+	}
+
 	fl := flag.NewFlagSet("", flag.ContinueOnError)
 	basedir := fl.String("basedir", "", "instrument all packages decendant f basedir")
 	goroot := fl.Bool("goroot", false, "Should I instrument packages in $GOROOT/src/pkg? (can take time)")
@@ -32,7 +45,6 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) e
 		return err
 	}
 
-	var pkg *Instrumentable
 	if gocmd.Command == "run" {
 		pkg = ImportFiles(*basedir, gocmd.Params...)
 	} else if len(gocmd.Params) == 0 {
