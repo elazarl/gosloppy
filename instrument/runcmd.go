@@ -144,6 +144,15 @@ func InstrumentCmd(f func(*patch.PatchableFile) patch.Patches, args ...string) (
 		}
 		if !minusC {
 			defer os.Remove(finalname)
+			for _, flag := range TestFlags {
+				v, ok := newgocmd.BuildFlags[flag]
+				if !ok {
+					v, ok = newgocmd.BuildFlags["test."+flag]
+				}
+				if ok {
+					newgocmd.ExtraFlags = append(newgocmd.ExtraFlags, "-test."+flag+"="+v)
+				}
+			}
 			r := exec.Command(finalname, newgocmd.ExtraFlags...)
 			r.Dir = gocmd.WorkDir
 			r.Stdin = os.Stdin

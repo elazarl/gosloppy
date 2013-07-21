@@ -74,6 +74,18 @@ func NewGoCmd(workdir string, args ...string) (*GoCmd, error) {
 	return NewGoCmdWithFlags(flag.NewFlagSet("", flag.ContinueOnError), workdir, args...)
 }
 
+var TestFlags = []string{
+	"bench",
+	"benchtime",
+	"cpu",
+	"cpuprofile",
+	"memprofile",
+	"memprofilerate",
+	"parallel",
+	"run",
+	"timeout",
+}
+
 // NewGoCmdWithFlags like NewGoCmd, but wl also parse flags configured i flagset
 func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*GoCmd, error) {
 	if len(args) < 2 {
@@ -96,16 +108,7 @@ func NewGoCmdWithFlags(flagset *flag.FlagSet, workdir string, args ...string) (*
 		for _, f := range []string{"i", "c"} {
 			flagset.Bool(f, false, "")
 		}
-		for _, testflag := range []string{
-			"bench",
-			"benchtime",
-			"cpu",
-			"cpuprofile",
-			"memprofile",
-			"memprofilerate",
-			"parallel",
-			"run",
-			"timeout"} {
+		for _, testflag := range TestFlags {
 			flagset.String(testflag, "", "")
 			flagset.String("test."+testflag, "", "")
 		}
