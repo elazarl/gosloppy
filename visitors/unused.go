@@ -70,7 +70,7 @@ func (v *Unused) ExitScope(scope *ast.Scope, node ast.Node, last bool) scopes.Vi
 	if file, ok := node.(*ast.File); ok {
 		for _, imp := range file.Imports {
 			name := imports.GetNameOrGuess(imp)
-			if !v.UsedImports[name] && !anonymousImport(imp.Name) {
+			if !v.UsedImports[name] && !anonymousImport(imp.Name) && imp.Path.Value != `"C"` {
 				v.Visitor.UnusedImport(imp)
 			}
 		}
