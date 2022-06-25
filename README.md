@@ -3,7 +3,7 @@
 ## Alpha Software
 
 This is a very preliminary version, distributed for the sake of being tested,
-it is far from a final product. Hopefully this will change soon.
+it is far from a final product. ~~Hopefully this will change soon~~. Nope, wouldn't change soone
 
 ## Goal
 
